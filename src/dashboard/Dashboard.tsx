@@ -11,9 +11,10 @@ import {
 } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { CreateBusiness, SignIn } from "@/dashboard/SignIn";
-import { accessToken, getMe, onSessionChange, publicConfig, signOut } from "@/lib/auth";
+import { accessToken, getMe, onSessionChange, signOut } from "@/lib/auth";
+import { publicConfig, usePublicConfig } from "@/lib/config";
 import { INITIAL_PRESETS, type IndustryConfig, type PresetId } from "@/data/industries";
-import { listQuotes, subscribeQuotes, type QuoteRecord } from "@/lib/store";
+import { cancelBooking, listQuotes, requestBalance, subscribeQuotes, type QuoteRecord } from "@/lib/store";
 import {
   DEMO_SLUG,
   bookingPath,
@@ -23,7 +24,6 @@ import {
   saveBusinessConfig,
 } from "@/lib/business";
 import { formatMoney } from "@/lib/pricing";
-import { paypalClientId } from "@/lib/deposit";
 
 type Section = "home" | "bookings" | "pricing";
 const NAV: { id: Section; label: string; icon: LucideIcon }[] = [
@@ -142,6 +142,7 @@ export function Dashboard() {
 }
 
 function OwnerDashboard({ slug, account }: { slug: string; account: Account | null }) {
+  const payConfig = usePublicConfig();
   const [section, setSection] = useState<Section>(sectionFromHash);
   const [config, setConfig] = useState<IndustryConfig | null>(null);
   const [quotes, setQuotes] = useState<QuoteRecord[]>([]);
@@ -200,7 +201,7 @@ function OwnerDashboard({ slug, account }: { slug: string; account: Account | nu
             <BrandMark />
           </a>
           <span className="rounded-full bg-[#FFF4CC] text-[#6B4E00] text-[11px] font-extrabold px-2.5 py-0.5">
-            {paypalClientId() ? "PayPal Sandbox" : "Demo payments"}
+            {!payConfig?.paypalClientId ? "Demo payments" : payConfig.paypalEnv === "live" ? "PayPal" : "PayPal Sandbox"}
           </span>
         </div>
         <nav className="w-full lg:w-auto flex lg:flex-col gap-1 lg:mt-4 overflow-x-auto [scrollbar-width:none] -mx-1 px-1" aria-label="Dashboard">
@@ -252,7 +253,14 @@ function OwnerDashboard({ slug, account }: { slug: string; account: Account | nu
             </p>
           )}
           {section === "home" && <HomeSection config={config} slug={slug} bookings={bookings} onOpen={go} />}
-          {section === "bookings" && <BookingsSection bookings={bookings} slug={slug} />}
+          {section === "bookings" && (
+            <BookingsSection
+              bookings={bookings}
+              slug={slug}
+              businessName={config.businessName}
+              onChanged={() => listQuotes(slug, accessToken).then(setQuotes, () => {})}
+            />
+          )}
           {section === "pricing" && <PricingSection config={config} slug={slug} onChange={setConfig} />}
         </div>
       </main>
@@ -280,12 +288,14 @@ function HomeSection({
 }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const upcoming = bookings.filter((b) => {
+  const active = bookings.filter((b) => b.status !== "cancelled");
+  const upcoming = active.filter((b) => {
     const d = visitDate(b);
     return d !== null && d >= today;
   });
-  const deposits = bookings.reduce((sum, b) => sum + b.deposit.amount, 0);
-  const balance = bookings.reduce((sum, b) => sum + (b.totalPrice - b.deposit.amount), 0);
+  const unpaid = active.filter((b) => b.status !== "paid");
+  const received = active.reduce((sum, b) => sum + b.deposit.amount + (b.status === "paid" ? balanceOf(b) : 0), 0);
+  const toCollect = unpaid.reduce((sum, b) => sum + balanceOf(b), 0);
 
   return (
     <div className="space-y-7">
@@ -303,9 +313,13 @@ function HomeSection({
       </div>
 
       <div className="grid sm:grid-cols-3 gap-3">
-        <Stat label="Upcoming visits" value={String(upcoming.length)} note={bookings.length + " booked in total"} />
-        <Stat label="Deposits received" value={formatMoney(deposits)} note="Paid when the customer booked" />
-        <Stat label="Balance to collect" value={formatMoney(balance)} note="Due after each job" />
+        <Stat label="Upcoming visits" value={String(upcoming.length)} note={active.length + " booked in total"} />
+        <Stat label="Money received" value={formatMoney(received)} note="Deposits and paid balances" />
+        <Stat
+          label="Balance to collect"
+          value={formatMoney(toCollect)}
+          note={unpaid.length === 1 ? "1 visit not paid in full" : unpaid.length + " visits not paid in full"}
+        />
       </div>
 
       <div className="grid lg:grid-cols-[1fr_340px] gap-5 items-start">
@@ -352,18 +366,156 @@ function Stat({ label, value, note }: { label: string; value: string; note: stri
   );
 }
 
+function balanceOf(b: Booking): number {
+  return b.balance?.amount ?? Math.round((b.totalPrice - b.deposit.amount) * 100) / 100;
+}
+
+const STATUS_LOOK: Record<Booking["status"], { label: string; className: string }> = {
+  booked: { label: "Deposit paid", className: "bg-success-soft text-success" },
+  balance_requested: { label: "Balance requested", className: "bg-brand-soft text-brand" },
+  paid: { label: "Paid in full", className: "bg-success text-white" },
+  cancelled: { label: "Cancelled", className: "bg-canvas text-muted" },
+};
+
 function StatusChip({ booking }: { booking: Booking }) {
-  const demo = booking.deposit.provider === "demo";
+  const look = STATUS_LOOK[booking.status] ?? STATUS_LOOK.booked;
+  const demo = booking.deposit.provider === "demo" && booking.status === "booked";
   return (
     <span
       className={
         "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold whitespace-nowrap " +
-        (demo ? "bg-canvas text-muted" : "bg-success-soft text-success")
+        (demo ? "bg-canvas text-muted" : look.className)
       }
     >
       <span className="w-1.5 h-1.5 rounded-full bg-current" />
-      {demo ? "Demo deposit" : "Deposit paid"}
+      {demo ? "Demo deposit" : look.label}
     </span>
+  );
+}
+
+function statusNote(b: Booking): string {
+  if (b.status === "paid") return "Balance " + formatMoney(balanceOf(b)) + " paid";
+  if (b.status === "cancelled") return "Deposit refunded" + (b.refund ? " (" + formatMoney(b.refund.amount) + ")" : "");
+  return formatMoney(balanceOf(b)) + " due after the job";
+}
+
+const smallButton = "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-extrabold whitespace-nowrap";
+
+/** Per-booking owner actions: ask for the balance with a pay link, or cancel and refund the deposit. */
+function BookingActions({
+  booking,
+  slug,
+  businessName,
+  onChanged,
+}: {
+  booking: Booking;
+  slug: string;
+  businessName: string;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState("");
+
+  if (booking.status === "paid" || booking.status === "cancelled") return null;
+
+  const payUrl = window.location.origin + "/pay/" + booking.id;
+  const firstName = booking.customerName.split(" ")[0];
+  const mailto =
+    "mailto:" +
+    booking.customerEmail +
+    "?subject=" +
+    encodeURIComponent("Your balance for " + businessName) +
+    "&body=" +
+    encodeURIComponent(
+      "Hi " + firstName + ",\n\nThanks for choosing " + businessName + ". The balance of " +
+        formatMoney(balanceOf(booking)) + " for your visit is ready to pay here:\n" + payUrl + "\n"
+    );
+
+  const run = async (action: () => Promise<unknown>) => {
+    setBusy(true);
+    setError("");
+    try {
+      await action();
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setBusy(false);
+      setConfirming(false);
+    }
+  };
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(payUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setError("Copy failed. The link is " + payUrl);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-start gap-1.5 min-w-[150px]">
+      {confirming ? (
+        <div className="space-y-1.5">
+          <p className="text-xs font-bold">Refund {formatMoney(booking.deposit.amount)} and cancel?</p>
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => run(() => cancelBooking(slug, booking.id, accessToken))}
+              className={smallButton + " bg-[#B42318] text-white hover:bg-[#912018] disabled:opacity-60"}
+            >
+              {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              Refund
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setConfirming(false)}
+              className={smallButton + " shadow-[inset_0_0_0_1.5px_#001435] hover:bg-canvas"}
+            >
+              Keep
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {booking.status === "booked" ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => run(() => requestBalance(slug, booking.id, accessToken))}
+              className={smallButton + " bg-ink text-white hover:bg-[#0A2A5C] disabled:opacity-60"}
+            >
+              {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              Request balance
+            </button>
+          ) : (
+            <div className="flex gap-1.5">
+              <button type="button" onClick={copy} className={smallButton + " bg-ink text-white hover:bg-[#0A2A5C]"}>
+                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? "Copied" : "Copy pay link"}
+              </button>
+              <a href={mailto} className={smallButton + " shadow-[inset_0_0_0_1.5px_#001435] hover:bg-canvas"}>
+                Email
+              </a>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setConfirming(true)}
+            className="text-xs font-bold text-muted hover:text-[#B42318]"
+          >
+            Cancel and refund
+          </button>
+        </>
+      )}
+      {error && <p className="text-xs text-[#B42318] max-w-[220px] break-words">{error}</p>}
+    </div>
   );
 }
 
@@ -408,7 +560,17 @@ function LinkCard({ slug }: { slug: string }) {
 
 /* ---------------- Bookings ---------------- */
 
-function BookingsSection({ bookings, slug }: { bookings: Booking[]; slug: string }) {
+function BookingsSection({
+  bookings,
+  slug,
+  businessName,
+  onChanged,
+}: {
+  bookings: Booking[];
+  slug: string;
+  businessName: string;
+  onChanged: () => void;
+}) {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
@@ -428,7 +590,7 @@ function BookingsSection({ bookings, slug }: { bookings: Booking[]; slug: string
         </div>
       ) : (
         <div className="bg-white border border-line rounded-2xl overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
+          <table className="w-full min-w-[960px] text-sm">
             <thead>
               <tr className="text-left text-[13px] text-muted">
                 <th className="font-bold px-5 py-3">Customer</th>
@@ -436,7 +598,10 @@ function BookingsSection({ bookings, slug }: { bookings: Booking[]; slug: string
                 <th className="font-bold px-3 py-3">Job</th>
                 <th className="font-bold px-3 py-3 text-right">Total</th>
                 <th className="font-bold px-3 py-3 text-right">Deposit</th>
-                <th className="font-bold px-5 py-3">Status</th>
+                <th className="font-bold px-3 py-3">Status</th>
+                <th className="font-bold px-5 py-3">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line border-t border-line">
@@ -462,11 +627,12 @@ function BookingsSection({ bookings, slug }: { bookings: Booking[]; slug: string
                       {b.deposit.orderId}
                     </div>
                   </td>
-                  <td className="px-5 py-3.5">
+                  <td className="px-3 py-3.5">
                     <StatusChip booking={b} />
-                    <div className="text-xs text-muted mt-1 tabular-nums">
-                      {formatMoney(b.totalPrice - b.deposit.amount)} after the job
-                    </div>
+                    <div className="text-xs text-muted mt-1 tabular-nums">{statusNote(b)}</div>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <BookingActions booking={b} slug={slug} businessName={businessName} onChanged={onChanged} />
                   </td>
                 </tr>
               ))}

@@ -18,7 +18,7 @@ create table if not exists public.bookings (
   id                  uuid primary key default gen_random_uuid(),
   business_slug       text not null,
   quote_id            text not null,
-  status              text not null default 'booked' check (status in ('new', 'sent', 'booked')),
+  status              text not null default 'booked',
   customer_name       text not null,
   customer_email      text not null,
   industry_id         text not null,
@@ -53,6 +53,22 @@ alter table public.businesses
   add column if not exists owner_id uuid references auth.users (id) on delete set null;
 create unique index if not exists businesses_owner_idx
   on public.businesses (owner_id) where owner_id is not null;
+
+-- After the visit: the balance the customer pays through a QuoteFlow link, or a cancellation refund.
+alter table public.bookings add column if not exists quote_selection jsonb;
+alter table public.bookings add column if not exists balance_amount numeric(10, 2);
+alter table public.bookings add column if not exists balance_requested_at timestamptz;
+alter table public.bookings add column if not exists balance_order_id text;
+alter table public.bookings add column if not exists balance_capture_id text;
+alter table public.bookings add column if not exists balance_paid_at timestamptz;
+alter table public.bookings add column if not exists refund_id text;
+alter table public.bookings add column if not exists refund_amount numeric(10, 2);
+alter table public.bookings add column if not exists refunded_at timestamptz;
+
+-- booked -> balance_requested -> paid, or booked/balance_requested -> cancelled (deposit refunded).
+alter table public.bookings drop constraint if exists bookings_status_check;
+alter table public.bookings add constraint bookings_status_check
+  check (status in ('booked', 'balance_requested', 'paid', 'cancelled'));
 
 alter table public.businesses enable row level security;
 alter table public.bookings enable row level security;

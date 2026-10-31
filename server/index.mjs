@@ -7,7 +7,27 @@ import { fileURLToPath } from "node:url";
 import { AiQuoteRequest, aiConfigured, suggestQuote, AI_MODEL } from "./aiQuote.mjs";
 import { createAuth } from "./auth.mjs";
 import { createDb } from "./db.mjs";
-import { BookingInput, BusinessConfig, DEMO_SLUG, NewBusinessInput, SignUpInput, Slug } from "./schemas.mjs";
+import {
+  PayPalError,
+  captureApprovedOrder,
+  createOrder,
+  paypalClientId,
+  paypalConfigured,
+  paypalEnv,
+  refundCapture,
+} from "./paypal.mjs";
+import { INITIAL_PRESETS, balanceCustomId, depositCustomId, quoteFor } from "./pricing.mjs";
+import {
+  BookingId,
+  BookingInput,
+  BusinessConfig,
+  DEMO_SLUG,
+  DepositOrderInput,
+  NewBusinessInput,
+  Payment,
+  SignUpInput,
+  Slug,
+} from "./schemas.mjs";
 import { publishableKey, supabaseUrl } from "./supabase.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -68,13 +88,16 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true, ai: aiConfigured(), model: AI_MODEL, storage: db.kind, auth: Boolean(auth) });
 });
 
-// What the browser needs to sign in. The publishable key is public by design.
+// What the browser needs to sign in and pay. Both keys are public by design.
 app.get("/api/public-config", (_req, res) => {
-  res.json(
-    auth
-      ? { auth: true, supabaseUrl, supabasePublishableKey: publishableKey, demo: auth.demoEnabled }
-      : { auth: false, demo: false }
-  );
+  res.json({
+    auth: Boolean(auth),
+    supabaseUrl: auth ? supabaseUrl : undefined,
+    supabasePublishableKey: auth ? publishableKey : undefined,
+    demo: Boolean(auth?.demoEnabled),
+    paypalClientId: paypalClientId || null,
+    paypalEnv,
+  });
 });
 
 app.post("/api/ai-quote", async (req, res) => {
@@ -130,6 +153,57 @@ function slugify(name) {
 
 function httpError(status, message) {
   return Object.assign(new Error(message), { status });
+}
+
+const round2 = (n) => Math.round(n * 100) / 100;
+const now = () => new Date().toISOString();
+
+/** A business's prices. The demo business works from its preset before the owner saves anything. */
+async function configFor(slug) {
+  const business = await db.getBusiness(slug);
+  if (business) return { name: business.name, config: business.config };
+  if (slug === DEMO_SLUG) return { name: INITIAL_PRESETS.cleaning.businessName, config: INITIAL_PRESETS.cleaning };
+  return null;
+}
+
+/**
+ * PayPal failures as answers the booking page understands:
+ * 402 = no money was taken, show the payment buttons again; 409 = the order is for a different quote.
+ */
+function paymentError(err) {
+  if (!(err instanceof PayPalError)) return err;
+  console.error("[paypal] failed:", err.status, err.issue, err.debugId || "");
+  if (err.issue === "ORDER_MISMATCH") {
+    return httpError(409, "This payment does not match the quote. Please review the quote and pay again.");
+  }
+  if (err.status === 422 || err.status === 402 || err.status === 404) {
+    return httpError(402, "PayPal did not complete the payment, so nothing was charged. Please try again.");
+  }
+  return httpError(502, "PayPal is not answering right now. Please try again in a minute.");
+}
+
+function balanceOf(b) {
+  return b.balance?.amount ?? round2(b.totalPrice - (b.deposit?.amount ?? 0));
+}
+
+/** Only what the customer needs on the balance page. */
+function payView(b, businessName) {
+  return {
+    id: b.id,
+    quoteId: b.quoteId,
+    businessName,
+    customerName: b.customerName,
+    industryLabel: b.industryLabel,
+    scopeSummary: b.scopeSummary,
+    dateSlot: b.dateSlot,
+    timeSlot: b.timeSlot,
+    totalPrice: b.totalPrice,
+    depositAmount: b.deposit?.amount ?? 0,
+    balanceAmount: balanceOf(b),
+    status: b.status,
+    balancePaidAt: b.balance?.paidAt,
+    balanceOrderId: b.balance?.orderId,
+  };
 }
 
 async function requireUser(req, res, next) {
@@ -224,8 +298,12 @@ api.param("slug", (req, res, next, value) => {
 
 api.get("/:slug", async (req, res) => {
   const business = await db.getBusiness(req.slug);
-  if (!business) return res.status(404).json({ error: "not_found", message: "No such business." });
-  res.json({ business: publicBusiness(business) });
+  if (business) return res.json({ business: publicBusiness(business) });
+  if (req.slug === DEMO_SLUG) {
+    const config = INITIAL_PRESETS.cleaning;
+    return res.json({ business: { slug: DEMO_SLUG, name: config.businessName, industry: config.id, config } });
+  }
+  res.status(404).json({ error: "not_found", message: "No such business." });
 });
 
 api.put("/:slug", limitWrites, requireOwner, async (req, res) => {
@@ -242,17 +320,125 @@ api.get("/:slug/bookings", requireOwner, async (req, res) => {
   res.json({ bookings: await db.listBookings(req.slug) });
 });
 
+// Step 1 of a PayPal deposit: the server prices the selection and opens an order for the deposit.
+api.post("/:slug/deposit-orders", limitWrites, async (req, res) => {
+  if (!paypalConfigured) return res.status(404).json({ error: "paypal_off", message: "PayPal is not set up here." });
+  const input = DepositOrderInput.safeParse(req.body);
+  if (!input.success) return res.status(400).json({ error: "bad_request", message: "The quote is incomplete." });
+  const found = await configFor(req.slug);
+  if (!found) return res.status(404).json({ error: "not_found", message: "No such business." });
+  const quote = quoteFor(found.config, input.data.selection);
+  const order = await createOrder({
+    amount: quote.deposit,
+    description: "Deposit: " + found.config.label + ", " + quote.scopeSummary,
+    customId: depositCustomId(req.slug, quote),
+    referenceId: req.slug,
+    brandName: found.name,
+  }).catch((err) => {
+    throw paymentError(err);
+  });
+  res.status(201).json({ orderId: order.id });
+});
+
+// Step 2: the customer approved the order. Capture it, check it matches the quote, save the booking.
+// Safe to repeat: the same order returns the booking saved the first time.
 api.post("/:slug/bookings", limitWrites, async (req, res) => {
   const input = BookingInput.safeParse(req.body);
   if (!input.success) {
     return res.status(400).json({ error: "bad_request", message: "Some booking details are missing or invalid." });
   }
-  if (req.slug !== DEMO_SLUG && !(await db.getBusiness(req.slug))) {
-    return res.status(404).json({ error: "not_found", message: "No such business." });
+  const found = await configFor(req.slug);
+  if (!found) return res.status(404).json({ error: "not_found", message: "No such business." });
+  const quote = quoteFor(found.config, input.data.selection);
+  const pay = input.data.deposit;
+
+  const existing = await db.findBookingByOrder(pay.orderId);
+  if (existing) {
+    if (existing.businessSlug !== req.slug) throw httpError(409, "This payment is already attached to another booking.");
+    return res.json({ booking: existing });
   }
-  const { booking, created } = await db.insertBooking(req.slug, input.data);
+
+  let deposit;
+  if (pay.provider === "paypal") {
+    if (!paypalConfigured) throw httpError(400, "PayPal is not set up here.");
+    const paid = await captureApprovedOrder(pay.orderId, depositCustomId(req.slug, quote)).catch((err) => {
+      throw paymentError(err);
+    });
+    deposit = { provider: "paypal", ...paid, paidAt: now() };
+  } else {
+    if (paypalConfigured) throw httpError(400, "This booking page takes PayPal. Please pay with the PayPal button.");
+    if (!pay.orderId.startsWith("DEMO-")) throw httpError(400, "Unknown demo payment.");
+    deposit = { provider: "demo", amount: quote.deposit, currency: "USD", orderId: pay.orderId, paidAt: now() };
+  }
+
+  const { booking, created } = await db.insertBooking(req.slug, {
+    status: "booked",
+    customerName: input.data.customerName,
+    customerEmail: input.data.customerEmail,
+    industryId: quote.industryId,
+    industryLabel: quote.industryLabel,
+    scopeSummary: quote.scopeSummary,
+    totalPrice: quote.total,
+    urgency: quote.urgency,
+    frequencyLabel: quote.frequencyLabel,
+    dateSlot: input.data.dateSlot,
+    timeSlot: input.data.timeSlot,
+    signatureDataUrl: input.data.signatureDataUrl,
+    selection: quote.selection,
+    balanceAmount: round2(quote.total - deposit.amount),
+    deposit,
+  });
   if (created) notify(req.slug, "bookings");
   res.status(created ? 201 : 200).json({ booking });
+});
+
+/** A booking of :slug, or a 404. */
+async function ownedBooking(req) {
+  const id = BookingId.safeParse(req.params.id);
+  const booking = id.success ? await db.getBooking(id.data) : null;
+  if (!booking || booking.businessSlug !== req.slug) throw httpError(404, "No such booking.");
+  return booking;
+}
+
+// After the visit: mark the balance as requested and hand the owner a pay link for the customer.
+api.post("/:slug/bookings/:id/request-balance", limitWrites, requireOwner, async (req, res) => {
+  const booking = await ownedBooking(req);
+  if (booking.status !== "booked" && booking.status !== "balance_requested") {
+    throw httpError(409, "This booking is already paid or cancelled.");
+  }
+  const updated =
+    booking.status === "booked"
+      ? await db.updateBooking(booking.id, ["booked"], { status: "balance_requested", balance_requested_at: now() })
+      : booking;
+  notify(req.slug, "bookings");
+  res.json({ booking: updated ?? booking, payPath: "/pay/" + booking.id });
+});
+
+// Cancel before the balance is paid: refund the deposit in full.
+api.post("/:slug/bookings/:id/cancel", limitWrites, requireOwner, async (req, res) => {
+  const booking = await ownedBooking(req);
+  if (booking.status === "cancelled") return res.json({ booking });
+  if (booking.status === "paid") throw httpError(409, "This booking is paid in full. Refund it from your PayPal account.");
+  let refundId;
+  if (booking.deposit?.provider === "paypal") {
+    if (!booking.deposit.captureId) throw httpError(409, "No PayPal capture to refund.");
+    refundId = (
+      await refundCapture(booking.deposit.captureId).catch((err) => {
+        console.error("[paypal] refund failed:", err.status, err.issue, err.debugId || "");
+        throw httpError(502, "PayPal could not refund this payment. Please try again.");
+      })
+    ).refundId;
+  } else {
+    refundId = "DEMO-REFUND-" + Date.now().toString(36).toUpperCase();
+  }
+  const updated = await db.updateBooking(booking.id, ["booked", "balance_requested"], {
+    status: "cancelled",
+    refund_id: refundId,
+    refund_amount: booking.deposit?.amount ?? 0,
+    refunded_at: now(),
+  });
+  notify(req.slug, "bookings");
+  res.json({ booking: updated ?? (await db.getBooking(booking.id)) });
 });
 
 // Carries no data, only "something changed", so it stays public (EventSource cannot send a token).
@@ -278,6 +464,76 @@ api.get("/:slug/events", (req, res) => {
 });
 
 app.use("/api/businesses", api);
+
+// ---- Balance payment (public: the booking ID is an unguessable UUID sent only to the customer) ----
+
+const payApi = express.Router();
+
+payApi.param("id", async (req, res, next, value) => {
+  const id = BookingId.safeParse(value);
+  const booking = id.success ? await db.getBooking(id.data) : null;
+  if (!booking) return res.status(404).json({ error: "not_found", message: "This payment link is not valid." });
+  req.booking = booking;
+  req.businessName = (await configFor(booking.businessSlug))?.name ?? "QuoteFlow";
+  next();
+});
+
+payApi.get("/:id", (req, res) => {
+  res.json({ booking: payView(req.booking, req.businessName) });
+});
+
+payApi.post("/:id/balance-orders", limitWrites, async (req, res) => {
+  const b = req.booking;
+  if (!paypalConfigured) return res.status(404).json({ error: "paypal_off", message: "PayPal is not set up here." });
+  if (b.status !== "booked" && b.status !== "balance_requested") {
+    throw httpError(409, "This booking is already paid or cancelled.");
+  }
+  const order = await createOrder({
+    amount: balanceOf(b),
+    description: "Balance: " + b.industryLabel + ", " + b.scopeSummary,
+    customId: balanceCustomId(b.id),
+    referenceId: b.businessSlug,
+    brandName: req.businessName,
+  }).catch((err) => {
+    throw paymentError(err);
+  });
+  res.status(201).json({ orderId: order.id });
+});
+
+payApi.post("/:id/balance-payments", limitWrites, async (req, res) => {
+  const input = Payment.safeParse(req.body);
+  if (!input.success) return res.status(400).json({ error: "bad_request", message: "Missing payment." });
+  const b = req.booking;
+  const pay = input.data;
+  if (b.status === "paid" && b.balance?.orderId === pay.orderId) {
+    return res.json({ booking: payView(b, req.businessName) });
+  }
+  if (b.status !== "booked" && b.status !== "balance_requested") {
+    throw httpError(409, "This booking is already paid or cancelled.");
+  }
+  let paid;
+  if (pay.provider === "paypal") {
+    if (!paypalConfigured) throw httpError(400, "PayPal is not set up here.");
+    paid = await captureApprovedOrder(pay.orderId, balanceCustomId(b.id)).catch((err) => {
+      throw paymentError(err);
+    });
+  } else {
+    if (paypalConfigured) throw httpError(400, "Please pay with the PayPal button.");
+    if (!pay.orderId.startsWith("DEMO-")) throw httpError(400, "Unknown demo payment.");
+    paid = { orderId: pay.orderId, amount: balanceOf(b) };
+  }
+  const updated = await db.updateBooking(b.id, ["booked", "balance_requested"], {
+    status: "paid",
+    balance_amount: paid.amount,
+    balance_order_id: paid.orderId,
+    balance_capture_id: paid.captureId ?? null,
+    balance_paid_at: now(),
+  });
+  notify(b.businessSlug, "bookings");
+  res.json({ booking: payView(updated ?? (await db.getBooking(b.id)), req.businessName) });
+});
+
+app.use("/api/bookings", payApi);
 
 app.use("/api", (_req, res) => res.status(404).json({ error: "not_found", message: "Unknown API route." }));
 
@@ -308,6 +564,7 @@ app.listen(PORT, async () => {
   } catch (err) {
     console.error(`[storage] ${db.kind} check failed:`, err?.code || "", err?.message || err);
   }
+  console.log("[paypal] " + (paypalConfigured ? paypalEnv : "off (demo payments; set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET)"));
   if (!auth) {
     console.log("[auth] off (set SUPABASE_PUBLISHABLE_KEY with Supabase to require owner sign-in)");
     return;

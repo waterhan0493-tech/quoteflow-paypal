@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, Loader2, Lock, ShieldCheck } from "lucide-react";
 import type { IndustryConfig } from "@/data/industries";
-import { createQuote, type QuoteRecord } from "@/lib/store";
+import { createDepositOrder, createQuote, type ApprovedPayment, type QuoteRecord } from "@/lib/store";
+import { ApiError } from "@/lib/api";
+import { paymentNotice, usePublicConfig } from "@/lib/config";
 import { loadBusinessConfig } from "@/lib/business";
-import { FREQUENCY_OPTIONS, formatMoney, priceQuote, type Frequency } from "@/lib/pricing";
+import { FREQUENCY_OPTIONS, formatMoney, priceQuote, type Frequency, type Urgency } from "@/lib/pricing";
 import { requestAiQuote } from "@/lib/aiQuote";
-import { depositFor, paypalClientId, type DepositPayment } from "@/lib/deposit";
-import { DepositButtons } from "@/components/customer/DepositStep";
+import { depositFor } from "@/lib/deposit";
+import { PaymentButtons } from "@/components/PaymentButtons";
 import { SignaturePad } from "@/components/customer/SignaturePad";
 
 const ARRIVAL_WINDOWS = ["8:00 – 10:00 AM", "10:00 AM – 12:00 PM", "1:00 – 3:00 PM", "3:00 – 5:00 PM"];
@@ -84,7 +86,7 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
   const days = useMemo(() => upcomingDays(BOOKABLE_DAYS), []);
   const [dayIndex, setDayIndex] = useState(1);
   const [windowIndex, setWindowIndex] = useState(0);
-  const urgency = dayIndex === 0 ? "rush" : "standard";
+  const urgency: Urgency = dayIndex === 0 ? "rush" : "standard";
 
   // Details
   const [name, setName] = useState("");
@@ -94,10 +96,13 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
   // Deposit
   const [agreed, setAgreed] = useState(false);
   const [booking, setBooking] = useState<QuoteRecord | null>(null);
-  // Set once PayPal (or the demo button) took the deposit, so a failed save never asks to pay twice.
-  const [payment, setPayment] = useState<DepositPayment | null>(null);
+  // Set once the buyer approved, so a failed save is retried with the same order and never paid twice.
+  const [payment, setPayment] = useState<ApprovedPayment | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  // Nothing was charged (declined, or the quote changed): show the payment buttons again with this note.
+  const [payError, setPayError] = useState("");
+  const publicConfig = usePublicConfig();
 
   const quote = priceQuote(config, { size, addOnIds, urgency, frequency });
   const deposit = depositFor(quote.total);
@@ -123,34 +128,36 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
     else if (dayIndex === 0) setDayIndex(1);
   };
 
-  const finish = async (paid: DepositPayment) => {
+  const selection = { size, addOnIds, urgency, frequency };
+
+  const finish = async (paid: ApprovedPayment) => {
     setPayment(paid);
     setSaving(true);
     setSaveError("");
-    const scopeAddOns = quote.addOns.length > 0 ? quote.addOns.map((a) => a.name).join(", ") : "Base package";
-    const saved = await createQuote(slug, {
-      customerName: name.trim(),
-      customerEmail: email.trim(),
-      industryId: config.id,
-      industryLabel: config.label,
-      scopeSummary: sizeText + " • " + scopeAddOns,
-      totalPrice: quote.total,
-      urgency,
-      frequencyLabel:
-        quote.frequency.discount > 0 ? quote.frequency.label + " (" + quote.frequency.badge + ")" : quote.frequency.label,
-      dateSlot: isoDate(day),
-      timeSlot: ARRIVAL_WINDOWS[windowIndex],
-      status: "booked",
-      signatureDataUrl: signature,
-      deposit: paid,
-    }).catch((err: Error) => {
-      setSaveError(err.message);
-      return null;
-    });
-    setSaving(false);
-    if (!saved) return;
-    setBooking(saved);
-    goto("done");
+    setPayError("");
+    try {
+      const saved = await createQuote(slug, {
+        customerName: name.trim(),
+        customerEmail: email.trim(),
+        dateSlot: isoDate(day),
+        timeSlot: ARRIVAL_WINDOWS[windowIndex],
+        signatureDataUrl: signature,
+        selection,
+        deposit: paid,
+      });
+      setBooking(saved);
+      goto("done");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Something went wrong.";
+      if (err instanceof ApiError && (err.status === 402 || err.status === 409 || err.status === 400)) {
+        setPayment(null);
+        setPayError(message);
+      } else {
+        setSaveError(message);
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const restart = () => {
@@ -163,6 +170,7 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
     setBooking(null);
     setPayment(null);
     setSaveError("");
+    setPayError("");
     goto("quote");
   };
 
@@ -406,12 +414,12 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
         {step === "deposit" && (
           <div className="space-y-4 pt-2">
             <h1 className="text-[28px] leading-[1.1] font-black tracking-tight">Pay the deposit</h1>
-            <div className="bg-[#FFF4CC] text-[#6B4E00] text-xs font-bold px-3 py-2 rounded-[10px] flex gap-2 items-center">
-              <Lock className="w-[15px] h-[15px]" />
-              {paypalClientId()
-                ? "Sandbox test payment. No real money moves."
-                : "Demo mode. No payment provider is connected."}
-            </div>
+            {publicConfig && paymentNotice(publicConfig) && (
+              <div className="bg-[#FFF4CC] text-[#6B4E00] text-xs font-bold px-3 py-2 rounded-[10px] flex gap-2 items-center">
+                <Lock className="w-[15px] h-[15px]" />
+                {paymentNotice(publicConfig)}
+              </div>
+            )}
             <div className="rounded-[18px] border border-line p-5 space-y-3.5">
               <div className="flex justify-between items-baseline text-[13px] text-muted gap-3">
                 <span>
@@ -463,8 +471,8 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
                   saveError && (
                     <>
                       <p className="rounded-[14px] bg-[#FDECEC] text-[#8A1C1C] text-sm px-4 py-3">
-                        Your {formatMoney(payment.amount)} deposit went through (order {payment.orderId}), but the
-                        booking did not save. {saveError}
+                        We could not confirm your booking yet ({payment.provider === "paypal" ? "PayPal order" : "order"}{" "}
+                        {payment.orderId}). Trying again will not charge you twice. {saveError}
                       </p>
                       <button
                         type="button"
@@ -477,15 +485,21 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
                   )
                 )}
               </div>
-            ) : agreed ? (
+            ) : agreed && publicConfig ? (
               <div className="space-y-2">
-                <DepositButtons
+                {payError && (
+                  <p role="alert" className="rounded-[14px] bg-[#FDECEC] text-[#8A1C1C] text-sm px-4 py-3">
+                    {payError}
+                  </p>
+                )}
+                <PaymentButtons
+                  clientId={publicConfig.paypalClientId}
                   amount={deposit}
-                  description={config.label + " - " + sizeText + " - " + dayLong}
-                  accentHex="#0070E0"
-                  onPaid={finish}
+                  what="deposit"
+                  createOrder={() => createDepositOrder(slug, selection)}
+                  onApproved={finish}
                 />
-                {paypalClientId() && (
+                {publicConfig.paypalClientId && (
                   <p className="text-xs text-muted text-center flex items-center justify-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-success" />
                     Paid through PayPal. QuoteFlow never sees your card.
@@ -519,7 +533,11 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
               <div className="space-y-2 text-sm">
                 <Line label={booking.scopeSummary} amount={booking.totalPrice} />
               </div>
-              <Split deposit={deposit} balance={balance} paid />
+              <Split
+                deposit={booking.deposit?.amount ?? deposit}
+                balance={booking.balance?.amount ?? balance}
+                paid
+              />
               {booking.deposit && (
                 <p className="text-xs text-muted tabular-nums break-all">
                   {booking.deposit.provider === "paypal" ? "PayPal order " : "Demo order "}

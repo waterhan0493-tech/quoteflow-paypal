@@ -58,6 +58,8 @@ export function priceQuote(config: IndustryConfig, sel: QuoteSelection): QuoteBr
   };
 }
 
+/** "$1,234.50"; negative amounts as "−$91.50" (true minus sign), never "$-91.50". */
 export function formatMoney(n: number): string {
-  return "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const abs = Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (n < 0 ? "−$" : "$") + abs;
 }

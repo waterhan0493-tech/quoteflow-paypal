@@ -22,7 +22,8 @@ function newQuoteId() {
 const LIST_COLUMNS =
   "id, business_slug, quote_id, status, customer_name, customer_email, industry_id, industry_label, scope_summary, " +
   "total_price, urgency, frequency_label, date_slot, time_slot, deposit_provider, deposit_amount, deposit_currency, " +
-  "deposit_order_id, deposit_capture_id, payer_email, deposit_paid_at, created_at";
+  "deposit_order_id, deposit_capture_id, payer_email, deposit_paid_at, created_at, quote_selection, balance_amount, " +
+  "balance_requested_at, balance_order_id, balance_capture_id, balance_paid_at, refund_id, refund_amount, refunded_at";
 
 function toRow(slug, quoteId, b) {
   return {
@@ -47,6 +48,8 @@ function toRow(slug, quoteId, b) {
     deposit_capture_id: b.deposit.captureId ?? null,
     payer_email: b.deposit.payerEmail ?? null,
     deposit_paid_at: b.deposit.paidAt,
+    quote_selection: b.selection ?? null,
+    balance_amount: b.balanceAmount ?? null,
   };
 }
 
@@ -54,6 +57,7 @@ function toRow(slug, quoteId, b) {
 function fromRow(r) {
   return {
     id: r.id,
+    businessSlug: r.business_slug,
     quoteId: r.quote_id,
     status: r.status,
     customerName: r.customer_name,
@@ -78,6 +82,19 @@ function fromRow(r) {
           paidAt: r.deposit_paid_at,
         }
       : undefined,
+    balance:
+      r.balance_amount != null
+        ? {
+            amount: Number(r.balance_amount),
+            requestedAt: r.balance_requested_at ?? undefined,
+            orderId: r.balance_order_id ?? undefined,
+            captureId: r.balance_capture_id ?? undefined,
+            paidAt: r.balance_paid_at ?? undefined,
+          }
+        : undefined,
+    refund: r.refund_id
+      ? { id: r.refund_id, amount: Number(r.refund_amount), refundedAt: r.refunded_at }
+      : undefined,
   };
 }
 
@@ -93,11 +110,36 @@ function supabaseDb(sb) {
     kind: "supabase",
 
     async check() {
-      // A real read: HEAD requests report missing tables as success.
-      for (const table of ["businesses", "bookings"]) {
-        const { error } = await sb.from(table).select("*").limit(1);
+      // Real reads of every column the app uses: HEAD requests report missing tables as success,
+      // and a missing column means schema.sql needs another run.
+      for (const [table, columns] of [["businesses", BUSINESS_COLUMNS], ["bookings", LIST_COLUMNS]]) {
+        const { error } = await sb.from(table).select(columns).limit(1);
         if (error) throw error;
       }
+    },
+
+    async findBookingByOrder(orderId) {
+      const row = await findByOrder(orderId);
+      return row && fromRow(row);
+    },
+
+    async getBooking(id) {
+      const { data, error } = await sb.from("bookings").select(LIST_COLUMNS).eq("id", id).maybeSingle();
+      if (error) throw error;
+      return data && fromRow(data);
+    },
+
+    /** Applies a patch of database columns, only if the booking is still in one of fromStatuses. */
+    async updateBooking(id, fromStatuses, patch) {
+      const { data, error } = await sb
+        .from("bookings")
+        .update(patch)
+        .eq("id", id)
+        .in("status", fromStatuses)
+        .select(LIST_COLUMNS)
+        .maybeSingle();
+      if (error) throw error;
+      return data && fromRow(data);
     },
 
     async getBusiness(slug) {
@@ -199,6 +241,23 @@ function memoryDb() {
     async setOwner(slug, ownerId) {
       const b = businesses.get(slug);
       if (b) b.owner_id = ownerId;
+    },
+
+    async findBookingByOrder(orderId) {
+      const row = bookings.find((r) => r.deposit_order_id === orderId);
+      return row ? fromRow(row) : null;
+    },
+
+    async getBooking(id) {
+      const row = bookings.find((r) => r.id === id);
+      return row ? fromRow(row) : null;
+    },
+
+    async updateBooking(id, fromStatuses, patch) {
+      const row = bookings.find((r) => r.id === id && fromStatuses.includes(r.status));
+      if (!row) return null;
+      Object.assign(row, patch);
+      return fromRow(row);
     },
 
     async listBookings(slug) {

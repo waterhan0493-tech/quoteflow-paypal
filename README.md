@@ -15,7 +15,7 @@ _TODO_
 
 ## Run locally
 
-Requires Node.js 22.9 or newer.
+Requires Node.js 24 or newer (the server runs the shared TypeScript pricing code directly).
 
 ```sh
 npm install
@@ -28,7 +28,7 @@ Every key is optional. Without one, that part runs in a local fallback:
 
 | Variable | Without it |
 |---|---|
-| `VITE_PAYPAL_CLIENT_ID` | A demo deposit button instead of PayPal |
+| `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | Demo payment buttons instead of PayPal |
 | `ANTHROPIC_API_KEY` | The AI quote box says it is offline |
 | `SUPABASE_URL`, `SUPABASE_SECRET_KEY` | Bookings live in server memory and reset on restart |
 | `SUPABASE_PUBLISHABLE_KEY` | The dashboard opens without sign-in |
@@ -38,7 +38,7 @@ To keep data in Supabase, create a project and run [`supabase/schema.sql`](supab
 
 With sign-in on, `/dashboard` asks owners to sign in or create an account. A new account gets its own booking page at `/b/<business-name>`.
 
-Pages: `/` overview, `/b/sparkle-co` customer booking page, `/dashboard` owner dashboard.
+Pages: `/` overview, `/b/sparkle-co` customer booking page, `/dashboard` owner dashboard, `/pay/<booking id>` balance payment.
 
 ## Testing with the PayPal sandbox
 

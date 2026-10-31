@@ -2,16 +2,8 @@
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import type { IndustryConfig } from "@/data/industries";
 import { api } from "@/lib/api";
+import { publicConfig } from "@/lib/config";
 import type { BusinessRecord } from "@/lib/store";
-
-interface PublicConfig {
-  /** False when the server has no Supabase sign-in; the dashboard then opens without one. */
-  auth: boolean;
-  supabaseUrl?: string;
-  supabasePublishableKey?: string;
-  /** True when "Use the demo account" works. */
-  demo: boolean;
-}
 
 export interface Me {
   email: string;
@@ -19,13 +11,7 @@ export interface Me {
   business: BusinessRecord | null;
 }
 
-let configPromise: Promise<PublicConfig> | null = null;
 let clientPromise: Promise<SupabaseClient | null> | null = null;
-
-export function publicConfig(): Promise<PublicConfig> {
-  configPromise ??= api<PublicConfig>("/public-config").catch(() => ({ auth: false, demo: false }));
-  return configPromise;
-}
 
 function authClient(): Promise<SupabaseClient | null> {
   clientPromise ??= publicConfig().then(async (c) => {

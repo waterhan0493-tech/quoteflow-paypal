@@ -32,29 +32,33 @@ export const BusinessConfig = z.looseObject({
     .max(30),
 });
 
+/** What the customer picked on the booking page. The server prices it; the browser's total is never trusted. */
+export const Selection = z.object({
+  size: z.number().finite(),
+  addOnIds: z.array(z.string().max(40)).max(30),
+  urgency: z.enum(["standard", "rush"]),
+  frequency: z.enum(["once", "monthly", "weekly"]),
+});
+
+/** A PayPal order the customer approved, or a demo stand-in when the server has no PayPal keys. */
+export const Payment = z.object({
+  provider: z.enum(["paypal", "demo"]),
+  orderId: z.string().min(3).max(64),
+});
+
 export const BookingInput = z.object({
-  status: z.enum(["new", "sent", "booked"]).default("booked"),
   customerName: z.string().trim().min(2).max(80),
   customerEmail: z.email().max(254),
-  industryId: PresetId,
-  industryLabel: z.string().max(60),
-  scopeSummary: z.string().max(300),
-  totalPrice: Money,
-  urgency: z.enum(["standard", "rush"]),
-  frequencyLabel: z.string().max(60),
   dateSlot: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   timeSlot: z.string().min(1).max(40),
   signatureDataUrl: z.string().startsWith("data:image/").max(200_000).optional(),
-  deposit: z.object({
-    provider: z.enum(["paypal", "demo"]),
-    amount: z.number().finite().positive().max(100_000),
-    currency: z.string().length(3),
-    orderId: z.string().min(3).max(64),
-    captureId: z.string().max(64).optional(),
-    payerEmail: z.string().max(254).optional(),
-    paidAt: z.iso.datetime(),
-  }),
+  selection: Selection,
+  deposit: Payment,
 });
+
+export const DepositOrderInput = z.object({ selection: Selection });
+
+export const BookingId = z.uuid();
 
 const NamedConfig = BusinessConfig.extend({ businessName: z.string().trim().min(2).max(80) });
 

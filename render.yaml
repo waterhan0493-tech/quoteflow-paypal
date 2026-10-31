@@ -5,16 +5,19 @@ services:
     name: quoteflow
     runtime: node
     region: virginia
-    plan: free
+    plan: starter # always on; the free plan sleeps after 15 idle minutes
     # Vite and Tailwind are dev dependencies, so install them for the build.
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
+      # 24 runs the shared TypeScript pricing code with built-in type stripping.
       - key: NODE_VERSION
-        value: "22"
-      # Read at build time by Vite. PayPal Developer Dashboard > Apps & Credentials > Sandbox.
-      - key: VITE_PAYPAL_CLIENT_ID
+        value: "24"
+      # PayPal Developer Dashboard > Apps & Credentials > Sandbox > your app.
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
         sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
