@@ -1,4 +1,5 @@
 import { Award, Printer, ExternalLink } from "lucide-react";
+import type { DepositPayment } from "@/lib/deposit";
 
 export interface ReceiptData {
   quoteId: string;
@@ -8,6 +9,7 @@ export interface ReceiptData {
   scopeSummary: string;
   totalPrice: number;
   signatureDataUrl?: string;
+  deposit?: DepositPayment;
 }
 
 interface ReceiptCardProps {
@@ -95,6 +97,29 @@ export function ReceiptCard({
             ${receipt.totalPrice.toFixed(2)}
           </span>
         </div>
+
+        {receipt.deposit && (
+          <div className="space-y-1 text-xs">
+            <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-400">
+              <span className="font-semibold">
+                Deposit paid{receipt.deposit.provider === "paypal" ? " with PayPal" : " (demo)"}
+              </span>
+              <span className="font-mono-num font-bold">
+                −${receipt.deposit.amount.toFixed(2)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Balance due on service day</span>
+              <span className="font-mono-num font-bold">
+                ${(receipt.totalPrice - receipt.deposit.amount).toFixed(2)}
+              </span>
+            </div>
+            <div className="text-[10px] text-slate-400 font-mono-num">
+              {receipt.deposit.provider === "paypal" ? "PayPal order " : "Ref "}
+              {receipt.deposit.orderId}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-2.5 pt-2">

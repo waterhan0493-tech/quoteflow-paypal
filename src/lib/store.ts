@@ -1,4 +1,5 @@
 import type { IndustryConfig, PresetId } from "@/data/industries";
+import type { DepositPayment } from "@/lib/deposit";
 
 export type LeadStatus = "new" | "sent" | "booked";
 
@@ -20,6 +21,7 @@ export interface QuoteRecord {
   isHotLead?: boolean;
   isNew?: boolean;
   signatureDataUrl?: string;
+  deposit?: DepositPayment;
 }
 
 export interface BusinessRecord {

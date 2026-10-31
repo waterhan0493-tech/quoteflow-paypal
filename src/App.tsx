@@ -35,6 +35,8 @@ import { soundFX } from "@/lib/sound";
 import { SignaturePad } from "@/components/customer/SignaturePad";
 import { ScopeScanner } from "@/components/customer/ScopeScanner";
 import { ReceiptCard } from "@/components/customer/ReceiptCard";
+import { DepositStep } from "@/components/customer/DepositStep";
+import type { DepositPayment } from "@/lib/deposit";
 import {
   getBusiness,
   saveBusiness,
@@ -267,7 +269,7 @@ export function App() {
   const [visionModalOpen, setVisionModalOpen] = useState<boolean>(true);
 
   const [isBookingOpen, setIsBookingOpen] = useState<boolean>(false);
-  const [bookingStep, setBookingStep] = useState<"form" | "receipt">("form");
+  const [bookingStep, setBookingStep] = useState<"form" | "deposit" | "receipt">("form");
   const [customerName, setCustomerName] = useState<string>("Alex Rivera");
   const [customerEmail, setCustomerEmail] = useState<string>("alex.rivera@example.com");
   const [bookingDate, setBookingDate] = useState<string>(() => {
@@ -578,8 +580,15 @@ export function App() {
     setIsBookingOpen(true);
   };
 
+  // Step 2 -> 3: details and signature are in; ask for the PayPal deposit.
   const handleConfirmBooking = (e: React.FormEvent) => {
     e.preventDefault();
+    soundFX.playToggle(true);
+    setBookingStep("deposit");
+  };
+
+  // Step 3 -> receipt: the deposit is captured, so the booking is saved.
+  const finalizeBooking = (deposit: DepositPayment) => {
     soundFX.playStampSuccess();
     const scopeAddOns =
       activeCustomerAddOns.length > 0
@@ -602,6 +611,7 @@ export function App() {
       createdAt: "Just now",
       isHotLead: finalTotal >= 300 || urgency === "rush",
       signatureDataUrl: signatureUrl,
+      deposit,
     };
 
     // Persist via the store (assigns the QF-XXXX id) then update UI.
@@ -1104,7 +1114,11 @@ export function App() {
                             color: currentConfig.accentHex,
                           }}
                         >
-                          {bookingStep === "form" ? "Step 2 of 2 • E-Sign Dispatch" : "Official Receipt"}
+                          {bookingStep === "form"
+                            ? "Step 2 of 3 • E-Sign Dispatch"
+                            : bookingStep === "deposit"
+                              ? "Step 3 of 3 • Secure Deposit"
+                              : "Official Receipt"}
                         </span>
                       </div>
 
@@ -1235,10 +1249,23 @@ export function App() {
                             className="w-full py-3.5 px-5 rounded-xl text-xs sm:text-sm font-bold text-white shadow-md hover:opacity-95 transition-all flex items-center justify-center gap-2"
                             style={{ backgroundColor: currentConfig.accentHex }}
                           >
-                            <span>Confirm & Lock Dispatch — ${finalTotal.toFixed(2)}</span>
+                            <span>Continue to Deposit — ${finalTotal.toFixed(2)}</span>
                             <ArrowRight className="w-4 h-4" />
                           </button>
                         </form>
+                      ) : bookingStep === "deposit" ? (
+                        <DepositStep
+                          total={finalTotal}
+                          businessName={currentConfig.businessName}
+                          orderDescription={
+                            currentConfig.businessName + " deposit - " + currentConfig.label + ", " +
+                            customerSize.toLocaleString() + " " + currentConfig.unitLabel
+                          }
+                          accentHex={currentConfig.accentHex}
+                          darkMode={darkMode}
+                          onPaid={finalizeBooking}
+                          onBack={() => setBookingStep("form")}
+                        />
                       ) : (
                         activeReceipt && (
                           <ReceiptCard
@@ -1799,6 +1826,12 @@ export function App() {
                               >
                                 ${lead.totalPrice.toLocaleString()}
                               </div>
+                              {lead.deposit && (
+                                <div className="text-[10px] font-semibold text-emerald-600 leading-tight whitespace-nowrap">
+                                  <div>Paid ${lead.deposit.amount.toFixed(2)}</div>
+                                  <div>{lead.deposit.provider === "paypal" ? "via PayPal" : "demo"}</div>
+                                </div>
+                              )}
                               <div className="text-[10px] text-slate-400">
                                 {lead.createdAt}
                               </div>
