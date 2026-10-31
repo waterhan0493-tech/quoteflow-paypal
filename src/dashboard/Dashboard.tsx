@@ -458,7 +458,7 @@ function BookingActions({
   };
 
   return (
-    <div className="flex flex-col items-start gap-1.5 min-w-[150px]">
+    <div className="flex flex-col items-start gap-1.5">
       {confirming ? (
         <div className="space-y-1.5">
           <p className="text-xs font-bold">Refund {formatMoney(booking.deposit.amount)} and cancel?</p>
@@ -560,6 +560,20 @@ function LinkCard({ slug }: { slug: string }) {
 
 /* ---------------- Bookings ---------------- */
 
+type Filter = "all" | "open" | "paid" | "cancelled";
+
+const FILTERS: { id: Filter; label: string; match: (b: Booking) => boolean }[] = [
+  { id: "all", label: "All", match: () => true },
+  { id: "open", label: "Awaiting balance", match: (b) => b.status === "booked" || b.status === "balance_requested" },
+  { id: "paid", label: "Paid in full", match: (b) => b.status === "paid" },
+  { id: "cancelled", label: "Cancelled", match: (b) => b.status === "cancelled" },
+];
+
+function visitDay(b: Booking): string {
+  const d = visitDate(b);
+  return d ? d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : b.dateSlot;
+}
+
 function BookingsSection({
   bookings,
   slug,
@@ -571,12 +585,17 @@ function BookingsSection({
   businessName: string;
   onChanged: () => void;
 }) {
+  const [filter, setFilter] = useState<Filter>("all");
+  const active = FILTERS.find((f) => f.id === filter) ?? FILTERS[0];
+  const shown = bookings.filter(active.match);
+
   return (
     <div className="space-y-6">
       <div className="space-y-1">
         <h1 className="text-[32px] leading-tight font-black tracking-tight">Bookings</h1>
-        <p className="text-muted">Every visit a customer booked and paid a deposit for, soonest first.</p>
+        <p className="text-muted">Every visit a customer booked with a deposit, soonest first.</p>
       </div>
+
       {bookings.length === 0 ? (
         <div className="bg-white border border-line rounded-2xl p-6 space-y-2">
           <p className="font-bold">No bookings yet</p>
@@ -589,56 +608,132 @@ function BookingsSection({
           </p>
         </div>
       ) : (
-        <div className="bg-white border border-line rounded-2xl overflow-x-auto">
-          <table className="w-full min-w-[960px] text-sm">
-            <thead>
-              <tr className="text-left text-[13px] text-muted">
-                <th className="font-bold px-5 py-3">Customer</th>
-                <th className="font-bold px-3 py-3">Visit</th>
-                <th className="font-bold px-3 py-3">Job</th>
-                <th className="font-bold px-3 py-3 text-right">Total</th>
-                <th className="font-bold px-3 py-3 text-right">Deposit</th>
-                <th className="font-bold px-3 py-3">Status</th>
-                <th className="font-bold px-5 py-3">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line border-t border-line">
-              {bookings.map((b) => (
-                <tr key={b.id} className="align-top">
-                  <td className="px-5 py-3.5">
-                    <div className="font-bold">{b.customerName}</div>
-                    <div className="text-[13px] text-muted">{b.customerEmail}</div>
-                    <div className="text-xs text-muted tabular-nums">{b.quoteId}</div>
-                  </td>
-                  <td className="px-3 py-3.5 whitespace-nowrap">
-                    {formatVisit(b)}
-                    {b.urgency === "rush" && <div className="text-xs font-bold text-[#9A5B00]">Next-day rush</div>}
-                  </td>
-                  <td className="px-3 py-3.5">
-                    <div>{b.scopeSummary}</div>
-                    <div className="text-xs text-muted">{b.frequencyLabel}</div>
-                  </td>
-                  <td className="px-3 py-3.5 text-right tabular-nums font-bold">{formatMoney(b.totalPrice)}</td>
-                  <td className="px-3 py-3.5 text-right">
-                    <div className="tabular-nums font-bold">{formatMoney(b.deposit.amount)}</div>
-                    <div className="text-xs text-muted tabular-nums" title="PayPal order ID">
-                      {b.deposit.orderId}
+        <>
+          <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] -mx-1 px-1" role="group" aria-label="Filter bookings">
+            {FILTERS.map((f) => {
+              const count = bookings.filter(f.match).length;
+              const on = f.id === filter;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => setFilter(f.id)}
+                  className={
+                    "shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-bold transition-colors " +
+                    (on ? "bg-ink text-white" : "bg-white border border-line text-ink hover:bg-canvas")
+                  }
+                >
+                  {f.label}
+                  <span className={"tabular-nums text-xs " + (on ? "text-white/70" : "text-muted")}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {shown.length === 0 ? (
+            <p className="bg-white border border-line rounded-2xl p-6 text-sm text-muted">No bookings in this list.</p>
+          ) : (
+            <>
+              {/* Phones and tablets: one card per booking */}
+              <ul className="lg:hidden space-y-3">
+                {shown.map((b) => (
+                  <li key={b.id} className="bg-white border border-line rounded-2xl p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-bold truncate">{b.customerName}</div>
+                        <div className="text-[13px] text-muted truncate">{b.customerEmail}</div>
+                      </div>
+                      <StatusChip booking={b} />
                     </div>
-                  </td>
-                  <td className="px-3 py-3.5">
-                    <StatusChip booking={b} />
-                    <div className="text-xs text-muted mt-1 tabular-nums">{statusNote(b)}</div>
-                  </td>
-                  <td className="px-5 py-3.5">
+                    <div className="text-sm space-y-0.5">
+                      <div className="font-semibold">
+                        {visitDay(b)} · {b.timeSlot}
+                        {b.urgency === "rush" && <span className="ml-1.5 text-xs font-bold text-[#9A5B00]">Rush</span>}
+                      </div>
+                      <div className="text-muted truncate">{b.scopeSummary}</div>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-3 text-sm border-t border-line pt-3">
+                      <span>
+                        <b className="tabular-nums">{formatMoney(b.totalPrice)}</b>
+                        <span className="text-muted"> · deposit {formatMoney(b.deposit.amount)}</span>
+                      </span>
+                      <span className="text-xs text-muted tabular-nums text-right">{statusNote(b)}</span>
+                    </div>
                     <BookingActions booking={b} slug={slug} businessName={businessName} onChanged={onChanged} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Desktop: a table that scans in one line per field */}
+              <div className="hidden lg:block bg-white border border-line rounded-2xl overflow-hidden">
+                <table className="w-full table-fixed text-sm">
+                  <colgroup>
+                    <col className="w-[22%]" />
+                    <col className="w-[15%]" />
+                    <col />
+                    <col className="w-[13%]" />
+                    <col className="w-[16%]" />
+                    <col className="w-[170px]" />
+                  </colgroup>
+                  <thead>
+                    <tr className="text-left text-[13px] text-muted">
+                      <th className="font-bold px-5 py-3">Customer</th>
+                      <th className="font-bold px-3 py-3">Visit</th>
+                      <th className="font-bold px-3 py-3">Job</th>
+                      <th className="font-bold px-3 py-3 text-right">Amount</th>
+                      <th className="font-bold px-3 py-3">Status</th>
+                      <th className="px-5 py-3" aria-label="Actions" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line border-t border-line">
+                    {shown.map((b) => (
+                      <tr key={b.id} className="align-top">
+                        <td className="px-5 py-3.5">
+                          <div className="font-bold truncate">{b.customerName}</div>
+                          <div className="text-[13px] text-muted truncate" title={b.customerEmail}>
+                            {b.customerEmail}
+                          </div>
+                        </td>
+                        <td className="px-3 py-3.5">
+                          <div className="font-semibold">{visitDay(b)}</div>
+                          <div className="text-[13px] text-muted">
+                            {b.timeSlot}
+                            {b.urgency === "rush" && <span className="ml-1 font-bold text-[#9A5B00]">Rush</span>}
+                          </div>
+                        </td>
+                        <td className="px-3 py-3.5">
+                          <div className="truncate" title={b.scopeSummary}>
+                            {b.scopeSummary}
+                          </div>
+                          <div className="text-[13px] text-muted truncate">
+                            {b.quoteId} · {b.frequencyLabel}
+                          </div>
+                        </td>
+                        <td className="px-3 py-3.5 text-right">
+                          <div className="tabular-nums font-bold">{formatMoney(b.totalPrice)}</div>
+                          <div
+                            className="text-[13px] text-muted tabular-nums"
+                            title={(b.deposit.provider === "paypal" ? "PayPal order " : "Demo order ") + b.deposit.orderId}
+                          >
+                            Deposit {formatMoney(b.deposit.amount)}
+                          </div>
+                        </td>
+                        <td className="px-3 py-3.5">
+                          <StatusChip booking={b} />
+                          <div className="text-xs text-muted mt-1 tabular-nums">{statusNote(b)}</div>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <BookingActions booking={b} slug={slug} businessName={businessName} onChanged={onChanged} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </>
       )}
     </div>
   );

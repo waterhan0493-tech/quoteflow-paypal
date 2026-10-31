@@ -282,8 +282,8 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
                           <span className="block text-xs text-muted">{a.description}</span>
                         </span>
                       </button>
-                      <span className={"tabular-nums font-semibold " + (on ? "" : "text-[#9AA6B6] line-through")}>
-                        {formatMoney(a.price)}
+                      <span className={"tabular-nums whitespace-nowrap " + (on ? "font-semibold" : "text-muted")}>
+                        {on ? formatMoney(a.price) : "+" + formatMoney(a.price)}
                       </span>
                     </div>
                   );

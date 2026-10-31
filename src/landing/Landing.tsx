@@ -9,7 +9,7 @@ import { DEPOSIT_MIN, DEPOSIT_RATE, depositFor } from "@/lib/deposit";
 const FACTS = [
   "Describe the job in a sentence and AI fills in the quote from your prices.",
   `The customer pays a ${Math.round(DEPOSIT_RATE * 100)}% deposit (at least $${DEPOSIT_MIN}) with PayPal to lock the date.`,
-  "You see every booking, the deposit paid and the balance still due.",
+  "You see every booking, then send a pay link for the balance after the job, or refund the deposit if you cancel.",
 ];
 
 export function Landing() {
