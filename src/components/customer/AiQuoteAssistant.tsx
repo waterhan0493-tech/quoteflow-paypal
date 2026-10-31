@@ -1,14 +1,9 @@
 import { useState } from "react";
 import { Loader2, Sparkles, Wand2 } from "lucide-react";
 import type { IndustryConfig } from "@/data/industries";
+import { requestAiQuote, type AiQuoteSuggestion } from "@/lib/aiQuote";
 
-export interface AiQuoteSuggestion {
-  size: number;
-  addOnIds: string[];
-  urgency: "standard" | "rush";
-  frequency: "once" | "monthly" | "weekly";
-  summary: string;
-}
+export type { AiQuoteSuggestion };
 
 interface AiQuoteAssistantProps {
   config: IndustryConfig;
@@ -38,35 +33,14 @@ export function AiQuoteAssistant({ config, accentHex, darkMode, onApply }: AiQuo
     setError("");
     setSummary("");
     try {
-      const res = await fetch("/api/ai-quote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          request,
-          industry: {
-            label: config.label,
-            sizeLabel: config.sizeLabel,
-            unitLabel: config.unitLabel,
-            minSize: config.minSize,
-            maxSize: config.maxSize,
-            stepSize: config.stepSize,
-            defaultSize: config.defaultSize,
-            addOns: config.addOns
-              .filter((a) => a.enabledInBuilder)
-              .map(({ id, name, description, price }) => ({ id, name, description, price })),
-          },
-        }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data) {
-        setError(data?.message ?? "The AI assistant is unavailable. Please set the options by hand.");
+      const result = await requestAiQuote(config, request);
+      if (!result.ok) {
+        setError(result.message);
         return;
       }
       if (!text.trim()) setText(request);
-      setSummary(data.summary);
-      onApply(data as AiQuoteSuggestion);
-    } catch {
-      setError("Could not reach the AI assistant. Please set the options by hand.");
+      setSummary(result.suggestion.summary);
+      onApply(result.suggestion);
     } finally {
       setLoading(false);
     }

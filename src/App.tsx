@@ -38,6 +38,7 @@ import { ReceiptCard } from "@/components/customer/ReceiptCard";
 import { DepositStep } from "@/components/customer/DepositStep";
 import { AiQuoteAssistant, type AiQuoteSuggestion } from "@/components/customer/AiQuoteAssistant";
 import type { DepositPayment } from "@/lib/deposit";
+import { FREQUENCY_OPTIONS, URGENCY_OPTIONS, priceQuote } from "@/lib/pricing";
 import {
   getBusiness,
   saveBusiness,
@@ -87,17 +88,6 @@ function useAnimatedNumber(target: number, duration = 260): number {
 
   return displayValue;
 }
-
-const FREQUENCY_OPTIONS = [
-  { id: "once", label: "One-time", discount: 0, badge: "Standard" },
-  { id: "monthly", label: "Bi-Weekly", discount: 0.1, badge: "Save 10%" },
-  { id: "weekly", label: "Weekly", discount: 0.2, badge: "Save 20%" },
-] as const;
-
-const URGENCY_OPTIONS = [
-  { id: "standard", label: "Standard", multiplier: 1, badge: "No extra fee" },
-  { id: "rush", label: "Next-Day Rush", multiplier: 1.2, badge: "+20% priority" },
-] as const;
 
 const TIME_SLOTS = [
   "09:00 AM – 11:00 AM",
@@ -568,20 +558,18 @@ export function App() {
     selectedAddOns.includes(a.id)
   );
 
-  const sizeCharge = Math.round(customerSize * currentConfig.multiplier);
-  const addOnsTotal = activeCustomerAddOns.reduce((sum, a) => sum + a.price, 0);
-  const rawSubtotal = currentConfig.baseFee + sizeCharge + addOnsTotal;
-
-  const urgencyObj =
-    URGENCY_OPTIONS.find((u) => u.id === urgency) || URGENCY_OPTIONS[0];
-  const rushFee =
-    urgency === "rush" ? Math.round(rawSubtotal * (urgencyObj.multiplier - 1)) : 0;
-  const subtotalWithUrgency = rawSubtotal + rushFee;
-
-  const freqObj =
-    FREQUENCY_OPTIONS.find((f) => f.id === frequency) || FREQUENCY_OPTIONS[0];
-  const discountAmount = Math.round(subtotalWithUrgency * freqObj.discount);
-  const finalTotal = subtotalWithUrgency - discountAmount;
+  const {
+    sizeCharge,
+    rushFee,
+    discount: discountAmount,
+    total: finalTotal,
+    frequency: freqObj,
+  } = priceQuote(currentConfig, {
+    size: customerSize,
+    addOnIds: selectedAddOns,
+    urgency,
+    frequency,
+  });
 
   const animatedTotal = useAnimatedNumber(finalTotal, 280);
 

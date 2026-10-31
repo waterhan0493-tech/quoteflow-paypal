@@ -35,8 +35,6 @@ export function DepositStep({
 }: DepositStepProps) {
   const deposit = depositFor(total);
   const balance = Math.round((total - deposit) * 100) / 100;
-  const clientId = paypalClientId();
-
   const panel = {
     backgroundColor: darkMode ? "#1E222B" : "#F7F9FC",
     borderColor: darkMode ? "#334155" : "#E3E8EF",
@@ -75,25 +73,12 @@ export function DepositStep({
         </span>
       </p>
 
-      {clientId ? (
-        <PayPalScriptProvider
-          options={{
-            clientId,
-            currency: DEPOSIT_CURRENCY,
-            intent: "capture",
-            // Keep the buttons in English whatever the browser language (contest material must be English).
-            locale: "en_US",
-          }}
-        >
-          <PayPalDepositButtons
-            amount={deposit}
-            description={orderDescription}
-            onPaid={onPaid}
-          />
-        </PayPalScriptProvider>
-      ) : (
-        <DemoDepositButton amount={deposit} accentHex={accentHex} onPaid={onPaid} />
-      )}
+      <DepositButtons
+        amount={deposit}
+        description={orderDescription}
+        accentHex={accentHex}
+        onPaid={onPaid}
+      />
 
       <button
         type="button"
@@ -104,6 +89,35 @@ export function DepositStep({
         <span>Edit booking details</span>
       </button>
     </div>
+  );
+}
+
+/** PayPal buttons for the deposit, or a demo button when no client ID is configured. */
+export function DepositButtons({
+  amount,
+  description,
+  accentHex,
+  onPaid,
+}: {
+  amount: number;
+  description: string;
+  accentHex: string;
+  onPaid: (payment: DepositPayment) => void;
+}) {
+  const clientId = paypalClientId();
+  if (!clientId) return <DemoDepositButton amount={amount} accentHex={accentHex} onPaid={onPaid} />;
+  return (
+    <PayPalScriptProvider
+      options={{
+        clientId,
+        currency: DEPOSIT_CURRENCY,
+        intent: "capture",
+        // Keep the buttons in English whatever the browser language (contest material must be English).
+        locale: "en_US",
+      }}
+    >
+      <PayPalDepositButtons amount={amount} description={description} onPaid={onPaid} />
+    </PayPalScriptProvider>
   );
 }
 
