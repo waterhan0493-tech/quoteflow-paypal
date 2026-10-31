@@ -36,6 +36,7 @@ import { SignaturePad } from "@/components/customer/SignaturePad";
 import { ScopeScanner } from "@/components/customer/ScopeScanner";
 import { ReceiptCard } from "@/components/customer/ReceiptCard";
 import { DepositStep } from "@/components/customer/DepositStep";
+import { AiQuoteAssistant, type AiQuoteSuggestion } from "@/components/customer/AiQuoteAssistant";
 import type { DepositPayment } from "@/lib/deposit";
 import {
   getBusiness,
@@ -550,6 +551,16 @@ export function App() {
       setAiMatchedPromptId(prompt.id);
       soundFX.playToggle(true);
     }, 1350);
+  };
+
+  // AI quote assistant: apply Claude's suggested settings to the calculator.
+  const handleApplyAiSuggestion = (s: AiQuoteSuggestion) => {
+    setCustomerSize(s.size);
+    setSelectedAddOns(s.addOnIds);
+    setUrgency(s.urgency);
+    setFrequency(s.frequency);
+    setAiMatchedPromptId(null);
+    soundFX.playToggle(true);
   };
 
   const visibleAddOns = currentConfig.addOns.filter((a) => a.enabledInBuilder);
@@ -1312,6 +1323,14 @@ export function App() {
                           </span>
                         )}
                       </div>
+
+                      {/* FEATURE 0: AI quote assistant (Claude) - free text to calculator settings */}
+                      <AiQuoteAssistant
+                        config={currentConfig}
+                        accentHex={currentConfig.accentHex}
+                        darkMode={darkMode}
+                        onApply={handleApplyAiSuggestion}
+                      />
 
                       {/* FEATURE 1: Computer-Vision "AI Photo & Scope Scanner" with REAL Photos */}
                       <ScopeScanner
