@@ -77,7 +77,13 @@ export function DepositStep({
 
       {clientId ? (
         <PayPalScriptProvider
-          options={{ clientId, currency: DEPOSIT_CURRENCY, intent: "capture" }}
+          options={{
+            clientId,
+            currency: DEPOSIT_CURRENCY,
+            intent: "capture",
+            // Keep the buttons in English whatever the browser language (contest material must be English).
+            locale: "en_US",
+          }}
         >
           <PayPalDepositButtons
             amount={deposit}
