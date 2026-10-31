@@ -101,7 +101,8 @@ app.post("/api/ai-quote", async (req, res) => {
     res.json(result);
   } catch (err) {
     const code = err && typeof err === "object" && "code" in err ? err.code : undefined;
-    console.error("[ai-quote] failed:", code || err);
+    // Status and type only (for example "401 authentication_error"); never the request or the key.
+    console.error("[ai-quote] failed:", code || [err?.status, err?.error?.error?.type || err?.message].filter(Boolean).join(" "));
     const message =
       code === "ai_refused" || code === "ai_bad_output"
         ? err.message
