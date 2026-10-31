@@ -5,6 +5,7 @@ import { INITIAL_PRESETS } from "@/data/industries";
 import { DEMO_SLUG, bookingPath, loadBusinessConfig } from "@/lib/business";
 import { formatMoney, priceQuote } from "@/lib/pricing";
 import { DEPOSIT_MIN, DEPOSIT_RATE, depositFor } from "@/lib/deposit";
+import { MoneyFlow, ServerChecks } from "./Sections";
 
 const FACTS = [
   "Describe the job in a sentence and AI fills in the quote from your prices.",
@@ -132,7 +133,10 @@ export function Landing() {
         </div>
       </main>
 
-      <footer className="border-t border-line">
+      <MoneyFlow config={config} />
+      <ServerChecks />
+
+      <footer>
         <div className="max-w-[1180px] mx-auto px-5 sm:px-12 py-6 text-[13px] text-muted flex flex-wrap gap-x-6 gap-y-1">
           <span>Built for the PayPal AI Hackathon 2026</span>
           <span>Open source under the MIT license</span>
