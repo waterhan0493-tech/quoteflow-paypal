@@ -48,5 +48,11 @@ create index if not exists bookings_business_created_idx
 create unique index if not exists bookings_deposit_order_idx
   on public.bookings (deposit_order_id) where deposit_order_id is not null;
 
+-- The owner who signs in to the dashboard (Supabase Auth). One business per owner.
+alter table public.businesses
+  add column if not exists owner_id uuid references auth.users (id) on delete set null;
+create unique index if not exists businesses_owner_idx
+  on public.businesses (owner_id) where owner_id is not null;
+
 alter table public.businesses enable row level security;
 alter table public.bookings enable row level security;

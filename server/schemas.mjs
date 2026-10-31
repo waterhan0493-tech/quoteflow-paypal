@@ -55,3 +55,13 @@ export const BookingInput = z.object({
     paidAt: z.iso.datetime(),
   }),
 });
+
+const NamedConfig = BusinessConfig.extend({ businessName: z.string().trim().min(2).max(80) });
+
+export const SignUpInput = z.object({
+  email: z.email().max(254).transform((e) => e.toLowerCase()),
+  password: z.string().min(8).max(72),
+  config: NamedConfig,
+});
+
+export const NewBusinessInput = z.object({ config: NamedConfig });

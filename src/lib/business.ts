@@ -1,5 +1,5 @@
 import { INITIAL_PRESETS, type IndustryConfig } from "@/data/industries";
-import { getBusiness, saveBusiness, type QuoteRecord } from "@/lib/store";
+import { getBusiness, saveBusiness, type QuoteRecord, type TokenSource } from "@/lib/store";
 
 /** The one business this build serves until owner sign-in exists. */
 export const DEMO_SLUG = "sparkle-co";
@@ -18,8 +18,8 @@ export async function loadBusinessConfig(slug: string): Promise<IndustryConfig |
   return slug === DEMO_SLUG ? INITIAL_PRESETS.cleaning : null;
 }
 
-export async function saveBusinessConfig(slug: string, config: IndustryConfig): Promise<void> {
-  await saveBusiness({ slug, name: config.businessName, industry: config.id, config });
+export async function saveBusinessConfig(slug: string, config: IndustryConfig, token: TokenSource): Promise<void> {
+  await saveBusiness({ slug, name: config.businessName, industry: config.id, config }, token);
 }
 
 /** A booking is a quote the customer confirmed with a deposit. Older demo leads have none. */

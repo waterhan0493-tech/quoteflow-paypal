@@ -10,6 +10,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
+import { CreateBusiness, SignIn } from "@/dashboard/SignIn";
+import { accessToken, getMe, onSessionChange, publicConfig, signOut } from "@/lib/auth";
 import { INITIAL_PRESETS, type IndustryConfig, type PresetId } from "@/data/industries";
 import { listQuotes, subscribeQuotes, type QuoteRecord } from "@/lib/store";
 import {
@@ -47,8 +49,99 @@ function formatVisit(b: Booking): string {
   return day + " · " + b.timeSlot;
 }
 
+interface Account {
+  email: string;
+  demo: boolean;
+}
+
+type Gate =
+  | { kind: "loading" }
+  | { kind: "signed-out"; demo: boolean }
+  | { kind: "no-business"; demo: boolean }
+  | { kind: "error"; message: string }
+  | { kind: "ready"; slug: string; account: Account | null };
+
+function FullScreen({ children }: { children: React.ReactNode }) {
+  return <div className="min-h-screen grid place-items-center bg-canvas text-muted px-5 text-center">{children}</div>;
+}
+
+/** Sign-in gate in front of the dashboard. Without server sign-in it opens the demo business directly. */
 export function Dashboard() {
-  const slug = DEMO_SLUG;
+  const [gate, setGate] = useState<Gate>({ kind: "loading" });
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    let stop = () => {};
+    let currentUser: string | null | undefined;
+    publicConfig().then((cfg) => {
+      if (!alive) return;
+      if (!cfg.auth) {
+        setGate({ kind: "ready", slug: DEMO_SLUG, account: null });
+        return;
+      }
+      stop = onSessionChange((session) => {
+        // Token refreshes fire here too; only a different user means a new dashboard.
+        const user = session?.user.id ?? null;
+        if (user === currentUser) return;
+        currentUser = user;
+        if (!session) {
+          setGate({ kind: "signed-out", demo: cfg.demo });
+          return;
+        }
+        setGate({ kind: "loading" });
+        // Leave the auth callback before calling the server (Supabase warns of deadlocks otherwise).
+        setTimeout(() => {
+          getMe(session.access_token).then(
+            (me) => {
+              if (!alive) return;
+              setGate(
+                me.business
+                  ? { kind: "ready", slug: me.business.slug, account: { email: me.email, demo: me.demo } }
+                  : { kind: "no-business", demo: me.demo }
+              );
+            },
+            (err: Error) => alive && setGate({ kind: "error", message: err.message })
+          );
+        }, 0);
+      });
+    });
+    return () => {
+      alive = false;
+      stop();
+    };
+  }, [attempt]);
+
+  const retry = () => setAttempt((n) => n + 1);
+
+  switch (gate.kind) {
+    case "loading":
+      return (
+        <FullScreen>
+          <Loader2 className="w-6 h-6 animate-spin" aria-label="Loading" />
+        </FullScreen>
+      );
+    case "signed-out":
+      return <SignIn demoAvailable={gate.demo} />;
+    case "no-business":
+      return <CreateBusiness demo={gate.demo} onCreated={retry} />;
+    case "error":
+      return (
+        <FullScreen>
+          <div className="space-y-3">
+            <p className="text-ink font-bold">{gate.message}</p>
+            <button type="button" onClick={retry} className="rounded-full bg-ink text-white px-5 py-2.5 font-extrabold">
+              Try again
+            </button>
+          </div>
+        </FullScreen>
+      );
+    case "ready":
+      return <OwnerDashboard key={gate.slug} slug={gate.slug} account={gate.account} />;
+  }
+}
+
+function OwnerDashboard({ slug, account }: { slug: string; account: Account | null }) {
   const [section, setSection] = useState<Section>(sectionFromHash);
   const [config, setConfig] = useState<IndustryConfig | null>(null);
   const [quotes, setQuotes] = useState<QuoteRecord[]>([]);
@@ -59,7 +152,7 @@ export function Dashboard() {
     const onHash = () => setSection(sectionFromHash());
     window.addEventListener("hashchange", onHash);
     loadBusinessConfig(slug).then(setConfig);
-    listQuotes(slug).then(
+    listQuotes(slug, accessToken).then(
       (q) => {
         setQuotes(q);
         setLoadError("");
@@ -67,7 +160,7 @@ export function Dashboard() {
       (err: Error) => setLoadError(err.message)
     );
     // A booking made on any device shows up here at once.
-    const unsub = subscribeQuotes(slug, (q) => {
+    const unsub = subscribeQuotes(slug, accessToken, (q) => {
       setQuotes(q);
       setLoadError("");
     });
@@ -139,9 +232,16 @@ export function Dashboard() {
             Booking page
           </a>
         </nav>
-        <div className="hidden lg:block mt-auto px-2 text-xs text-muted">
-          Signed in as <b className="text-ink">{config.businessName}</b>
-        </div>
+        {account && (
+          <div className="ml-auto lg:ml-0 lg:mt-auto lg:px-2 text-xs text-muted flex lg:flex-col items-center lg:items-start gap-1">
+            <span className="hidden lg:block">
+              Signed in as <b className="text-ink break-all">{account.demo ? "the demo account" : account.email}</b>
+            </span>
+            <button type="button" onClick={() => signOut()} className="font-bold text-ink hover:underline">
+              Sign out
+            </button>
+          </div>
+        )}
       </aside>
 
       <main className="flex-1 min-w-0 px-5 sm:px-8 py-7 lg:py-9">
@@ -404,7 +504,7 @@ function PricingSection({
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
       try {
-        await saveBusinessConfig(slug, next);
+        await saveBusinessConfig(slug, next, accessToken);
         setSaved("saved");
         setPreviewKey((k) => k + 1);
       } catch (err) {

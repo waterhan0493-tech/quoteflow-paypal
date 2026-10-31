@@ -1,7 +1,10 @@
 import type { IndustryConfig, PresetId } from "@/data/industries";
 import type { DepositPayment } from "@/lib/deposit";
+import { ApiError, api } from "@/lib/api";
 
-// Client for the QuoteFlow server (server/index.mjs). The server keeps the data in Supabase.
+// Businesses and bookings, kept by the QuoteFlow server in Supabase.
+// Owner-only calls take the access token from src/lib/auth.ts (passed in, so the booking page
+// never loads the sign-in code).
 
 export type LeadStatus = "new" | "sent" | "booked";
 
@@ -37,30 +40,8 @@ export interface BusinessRecord {
   config: IndustryConfig;
 }
 
-export class ApiError extends Error {
-  constructor(
-    readonly status: number,
-    message: string
-  ) {
-    super(message);
-  }
-}
-
-async function api<T>(path: string, init?: { method: string; body: unknown }): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch("/api" + path, {
-      method: init?.method ?? "GET",
-      headers: init ? { "Content-Type": "application/json" } : undefined,
-      body: init ? JSON.stringify(init.body) : undefined,
-    });
-  } catch {
-    throw new ApiError(0, "Could not reach QuoteFlow. Check your connection.");
-  }
-  const data = await res.json().catch(() => null);
-  if (!res.ok) throw new ApiError(res.status, data?.message ?? "Something went wrong. Please try again.");
-  return data as T;
-}
+/** Resolves the owner's access token for a request; null when sign-in is off. */
+export type TokenSource = () => Promise<string | null>;
 
 const businessPath = (slug: string) => "/businesses/" + encodeURIComponent(slug);
 
@@ -73,12 +54,12 @@ export async function getBusiness(slug: string): Promise<BusinessRecord | null> 
   }
 }
 
-export async function saveBusiness(business: BusinessRecord): Promise<void> {
-  await api(businessPath(business.slug), { method: "PUT", body: { config: business.config } });
+export async function saveBusiness(business: BusinessRecord, token: TokenSource): Promise<void> {
+  await api(businessPath(business.slug), { method: "PUT", body: { config: business.config }, token: await token() });
 }
 
-export async function listQuotes(slug: string): Promise<QuoteRecord[]> {
-  return (await api<{ bookings: QuoteRecord[] }>(businessPath(slug) + "/bookings")).bookings;
+export async function listQuotes(slug: string, token: TokenSource): Promise<QuoteRecord[]> {
+  return (await api<{ bookings: QuoteRecord[] }>(businessPath(slug) + "/bookings", { token: await token() })).bookings;
 }
 
 /** Saves a paid booking. Sending the same deposit order again returns the booking saved the first time. */
@@ -88,10 +69,14 @@ export async function createQuote(slug: string, booking: NewBooking): Promise<Qu
 }
 
 /** Calls back with the fresh list whenever a booking is saved, from any device. */
-export function subscribeQuotes(slug: string, callback: (quotes: QuoteRecord[]) => void): () => void {
+export function subscribeQuotes(
+  slug: string,
+  token: TokenSource,
+  callback: (quotes: QuoteRecord[]) => void
+): () => void {
   const source = new EventSource("/api" + businessPath(slug) + "/events");
   const refresh = () =>
-    listQuotes(slug).then(callback, () => {
+    listQuotes(slug, token).then(callback, () => {
       // Keep the list on screen; the next event or reconnect tries again.
     });
   source.addEventListener("bookings", refresh);

@@ -1,13 +1,17 @@
 // Storage for businesses and bookings.
 // Supabase when SUPABASE_URL and SUPABASE_SECRET_KEY are set (schema: supabase/schema.sql),
 // otherwise an in-memory store so the app runs right after cloning (data resets on restart).
-import { createClient } from "@supabase/supabase-js";
+import { adminClient } from "./supabase.mjs";
 
 export function createDb() {
-  const url = (process.env.SUPABASE_URL || "").trim();
-  const key = (process.env.SUPABASE_SECRET_KEY || "").trim();
-  // Accept the project URL with or without the "/rest/v1/" the dashboard sometimes shows.
-  return url && key ? supabaseDb(new URL(url).origin, key) : memoryDb();
+  const sb = adminClient();
+  return sb ? supabaseDb(sb) : memoryDb();
+}
+
+const BUSINESS_COLUMNS = "slug, name, industry, config, owner_id";
+
+function conflict(message) {
+  return Object.assign(new Error(message), { status: 409 });
 }
 
 function newQuoteId() {
@@ -77,8 +81,7 @@ function fromRow(r) {
   };
 }
 
-function supabaseDb(url, key) {
-  const sb = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+function supabaseDb(sb) {
 
   async function findByOrder(orderId) {
     const { data, error } = await sb.from("bookings").select(LIST_COLUMNS).eq("deposit_order_id", orderId).maybeSingle();
@@ -98,15 +101,37 @@ function supabaseDb(url, key) {
     },
 
     async getBusiness(slug) {
-      const { data, error } = await sb.from("businesses").select("slug, name, industry, config").eq("slug", slug).maybeSingle();
+      const { data, error } = await sb.from("businesses").select(BUSINESS_COLUMNS).eq("slug", slug).maybeSingle();
       if (error) throw error;
       return data;
     },
 
+    async getBusinessByOwner(ownerId) {
+      const { data, error } = await sb.from("businesses").select(BUSINESS_COLUMNS).eq("owner_id", ownerId).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+
+    /** Inserts a new business. Throws { status: 409 } when the slug is taken or the owner already has one. */
+    async createBusiness(rec) {
+      const { data, error } = await sb.from("businesses").insert(rec).select(BUSINESS_COLUMNS).single();
+      if (!error) return data;
+      if (error.code === "23505") {
+        throw conflict(error.message.includes("businesses_owner_idx") ? "owner_taken" : "slug_taken");
+      }
+      throw error;
+    },
+
+    /** Creates or updates prices and name; never changes the owner. */
     async saveBusiness({ slug, name, industry, config }) {
       const { error } = await sb
         .from("businesses")
         .upsert({ slug, name, industry, config, updated_at: new Date().toISOString() }, { onConflict: "slug" });
+      if (error) throw error;
+    },
+
+    async setOwner(slug, ownerId) {
+      const { error } = await sb.from("businesses").update({ owner_id: ownerId }).eq("slug", slug);
       if (error) throw error;
     },
 
@@ -155,8 +180,25 @@ function memoryDb() {
       return businesses.get(slug) ?? null;
     },
 
-    async saveBusiness(rec) {
+    async getBusinessByOwner(ownerId) {
+      return [...businesses.values()].find((b) => b.owner_id === ownerId) ?? null;
+    },
+
+    async createBusiness(rec) {
+      if (businesses.has(rec.slug)) throw conflict("slug_taken");
+      if (rec.owner_id && [...businesses.values()].some((b) => b.owner_id === rec.owner_id)) throw conflict("owner_taken");
       businesses.set(rec.slug, structuredClone(rec));
+      return structuredClone(rec);
+    },
+
+    async saveBusiness(rec) {
+      const owner_id = businesses.get(rec.slug)?.owner_id ?? null;
+      businesses.set(rec.slug, { ...structuredClone(rec), owner_id });
+    },
+
+    async setOwner(slug, ownerId) {
+      const b = businesses.get(slug);
+      if (b) b.owner_id = ownerId;
     },
 
     async listBookings(slug) {
