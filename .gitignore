@@ -1,0 +1,18 @@
+# Korean contest notes and personal data stay local (submission materials must be English)
+notes/
+private/
+CLAUDE.md
+
+# Node / Vite
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.log
+dist-ssr/
+*.local
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
