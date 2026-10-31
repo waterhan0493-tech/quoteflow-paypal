@@ -27,7 +27,7 @@ export function SignaturePad({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = "#E5E0D8";
+    ctx.strokeStyle = "#E3E8EF";
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
@@ -46,7 +46,7 @@ export function SignaturePad({
       initSignatureCanvas();
       ctx.save();
       ctx.font = 'italic 28px "Instrument Serif", Georgia, serif';
-      ctx.fillStyle = "#141413";
+      ctx.fillStyle = "#001435";
       ctx.fillText(nameText || "Alex Rivera", 28, canvas.height - 28);
       ctx.strokeStyle = accentHex;
       ctx.lineWidth = 2;
@@ -77,7 +77,7 @@ export function SignaturePad({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     isDrawingRef.current = true;
-    ctx.strokeStyle = "#141413";
+    ctx.strokeStyle = "#001435";
     ctx.lineWidth = 2.2;
     ctx.lineCap = "round";
     ctx.beginPath();
@@ -136,7 +136,7 @@ export function SignaturePad({
           </button>
         </div>
       </div>
-      <div className="rounded-xl border border-[#E5E0D8] bg-[#FAF8F5] overflow-hidden relative">
+      <div className="rounded-xl border border-[#E3E8EF] bg-[#F7F9FC] overflow-hidden relative">
         <canvas
           ref={sigCanvasRef}
           width={340}

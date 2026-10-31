@@ -4,9 +4,9 @@
 
 @layer base {
   body {
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-    background-color: #F8F6F2;
-    color: #141413;
+    font-family: 'Figtree', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: #F5F7FA;
+    color: #001435;
     -webkit-font-smoothing: antialiased;
   }
 }
@@ -35,7 +35,7 @@
   background-position: 0 0;
   background-size: 16px 8px;
   background-repeat: repeat-x;
-  filter: drop-shadow(0 2px 1px rgba(20, 20, 19, 0.06));
+  filter: drop-shadow(0 2px 1px rgba(0, 20, 53, 0.06));
 }
 
 .dark .receipt-paper-edge::after {
@@ -52,7 +52,7 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-runnable-track {
   height: 8px;
   border-radius: 999px;
-  background: #E5E0D8;
+  background: #E3E8EF;
 }
 .dark input[type="range"]::-webkit-slider-runnable-track {
   background: #2A2E37;
@@ -63,7 +63,7 @@ input[type="range"]::-webkit-slider-thumb {
   height: 22px;
   width: 22px;
   border-radius: 999px;
-  background: #EA580C;
+  background: #0070E0;
   border: 3px solid #FFFFFF;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
   margin-top: -7px;

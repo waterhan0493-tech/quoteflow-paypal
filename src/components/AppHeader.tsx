@@ -78,7 +78,7 @@ export function AppHeader({
     <header
       className={
         "sticky top-0 z-30 border-b backdrop-blur-md transition-colors " +
-        (darkMode ? "bg-[#14171F]/90 border-slate-800" : "bg-white/90 border-[#E5E0D8]")
+        (darkMode ? "bg-[#14171F]/90 border-slate-800" : "bg-white/90 border-[#E3E8EF]")
       }
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
@@ -99,7 +99,7 @@ export function AppHeader({
         <div
           className={
             "flex items-center p-1 rounded-xl border " +
-            (darkMode ? "bg-slate-900 border-slate-800" : "bg-[#F3EFEA] border-[#E5E0D8]")
+            (darkMode ? "bg-slate-900 border-slate-800" : "bg-[#EEF3F9] border-[#E3E8EF]")
           }
         >
           {STEP_DEFS.map((step, idx) => {
@@ -114,7 +114,7 @@ export function AppHeader({
                   (isActive
                     ? darkMode
                       ? "bg-slate-800 text-white shadow-sm"
-                      : "bg-white text-[#141413] shadow-sm"
+                      : "bg-white text-[#001435] shadow-sm"
                     : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200")
                 }
               >
@@ -126,7 +126,7 @@ export function AppHeader({
                       : isActive
                       ? darkMode
                         ? "bg-slate-700 text-white"
-                        : "bg-slate-200 text-[#141413]"
+                        : "bg-slate-200 text-[#001435]"
                       : "bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-300")
                   }
                   style={isDone ? { backgroundColor: "#10B981" } : undefined}
@@ -165,7 +165,7 @@ export function AppHeader({
                 "pl-7 pr-7 py-2 rounded-xl border text-xs font-semibold appearance-none cursor-pointer transition-colors " +
                 (darkMode
                   ? "bg-slate-900 border-slate-800 text-white"
-                  : "bg-white border-[#E5E0D8] text-[#141413]")
+                  : "bg-white border-[#E3E8EF] text-[#001435]")
               }
             >
               {(Object.values(configs) as IndustryConfig[]).map((preset) => (
@@ -189,7 +189,7 @@ export function AppHeader({
           {/* Publish & Embed */}
           <button
             onClick={onOpenEmbed}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white shadow-sm hover:opacity-95 transition-all"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-white shadow-sm hover:opacity-95 transition-all"
             style={{ backgroundColor: configs[activePresetId].accentHex }}
           >
             <Code2 className="w-3.5 h-3.5" />
@@ -205,7 +205,7 @@ export function AppHeader({
                 "p-2 rounded-xl border transition-colors " +
                 (darkMode
                   ? "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800"
-                  : "bg-white border-[#E5E0D8] text-slate-600 hover:bg-slate-50")
+                  : "bg-white border-[#E3E8EF] text-slate-600 hover:bg-slate-50")
               }
             >
               <MoreHorizontal className="w-4 h-4" />
@@ -216,7 +216,7 @@ export function AppHeader({
                   "absolute right-0 mt-1.5 w-52 rounded-xl border shadow-lg py-1.5 z-50 " +
                   (darkMode
                     ? "bg-[#181B24] border-slate-800 text-white"
-                    : "bg-white border-[#E5E0D8] text-[#141413]")
+                    : "bg-white border-[#E3E8EF] text-[#001435]")
                 }
               >
                 <button
@@ -253,7 +253,7 @@ export function AppHeader({
                 <div
                   className={
                     "my-1 border-t " +
-                    (darkMode ? "border-slate-800" : "border-[#E5E0D8]")
+                    (darkMode ? "border-slate-800" : "border-[#E3E8EF]")
                   }
                 />
                 <button

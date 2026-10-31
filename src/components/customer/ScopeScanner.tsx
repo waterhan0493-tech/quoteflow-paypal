@@ -32,7 +32,7 @@ export function ScopeScanner({
         "p-3.5 sm:p-4 rounded-xl border transition-all space-y-3 " +
         (darkMode
           ? "bg-slate-900/80 border-slate-800"
-          : "bg-[#FAF8F5] border-[#E5E0D8]")
+          : "bg-[#F7F9FC] border-[#E3E8EF]")
       }
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -59,7 +59,7 @@ export function ScopeScanner({
           <button
             type="button"
             onClick={() => onRunPrompt(activePrompt)}
-            style={{ backgroundColor: "#141413", color: "#FFFFFF" }}
+            style={{ backgroundColor: "#001435", color: "#FFFFFF" }}
             className="px-3 py-1.5 rounded-lg text-[11px] font-semibold hover:opacity-90 transition-all flex items-center gap-1.5"
           >
             <ScanLine className="w-3.5 h-3.5" style={{ color: "#FBBF24" }} />
@@ -78,7 +78,7 @@ export function ScopeScanner({
       {/* Real Property Photo Camera Viewfinder + Crisp Detection Breakdown Below */}
       {visionModalOpen && (
         <div className="space-y-2.5">
-          <div className={"relative rounded-xl overflow-hidden border border-[#141413] bg-[#0F131A] select-none " + (isMobile ? "h-48" : "h-60")}>
+          <div className={"relative rounded-xl overflow-hidden border border-[#001435] bg-[#0F131A] select-none " + (isMobile ? "h-48" : "h-60")}>
             <img
               src={activePrompt.imageUrl}
               alt={activePrompt.photoLabel}
@@ -172,7 +172,7 @@ export function ScopeScanner({
                   "px-3 py-2 rounded-lg border text-xs flex items-center justify-between gap-2 " +
                   (darkMode
                     ? "bg-slate-900 border-slate-800 text-slate-200"
-                    : "bg-white border-[#E5E0D8] text-[#141413]")
+                    : "bg-white border-[#E3E8EF] text-[#001435]")
                 }
               >
                 <div className="flex items-center gap-2 min-w-0">
@@ -212,22 +212,22 @@ export function ScopeScanner({
               onClick={() => onRunPrompt(prompt)}
               style={{
                 backgroundColor: isActiveCard
-                  ? "#141413"
+                  ? "#001435"
                   : darkMode
                   ? "#1E222B"
                   : "#FFFFFF",
                 borderColor: isScanningThis
                   ? "#F59E0B"
                   : isMatchedThis
-                  ? "#141413"
+                  ? "#001435"
                   : darkMode
                   ? "#334155"
-                  : "#E5E0D8",
+                  : "#E3E8EF",
                 color: isActiveCard
                   ? "#FFFFFF"
                   : darkMode
-                  ? "#F5F3EF"
-                  : "#141413",
+                  ? "#F1F5F9"
+                  : "#001435",
               }}
               className={
                 "text-left p-2.5 rounded-xl border text-xs transition-all shadow-sm hover:border-slate-400 flex " +
@@ -255,8 +255,8 @@ export function ScopeScanner({
                     color: isActiveCard
                       ? "#FFFFFF"
                       : darkMode
-                      ? "#F5F3EF"
-                      : "#141413",
+                      ? "#F1F5F9"
+                      : "#001435",
                   }}
                 >
                   📸 {prompt.photoLabel}
@@ -268,7 +268,7 @@ export function ScopeScanner({
                       ? "#D1D5DB"
                       : darkMode
                       ? "#94A3B8"
-                      : "#57534E",
+                      : "#475569",
                   }}
                 >
                   “{prompt.label}”

@@ -307,7 +307,13 @@ export function App() {
     (async () => {
       const savedBusiness = await getBusiness(BUSINESS_SLUG);
       if (!cancelled && savedBusiness && savedBusiness.config) {
-        setConfigs((prev) => ({ ...prev, [savedBusiness.industry]: savedBusiness.config }));
+        // The owner cannot edit the accent color, so always take it from the preset.
+        // This also moves older saved configs onto the current palette.
+        const preset = INITIAL_PRESETS[savedBusiness.industry];
+        const config = preset
+          ? { ...savedBusiness.config, accentHex: preset.accentHex }
+          : savedBusiness.config;
+        setConfigs((prev) => ({ ...prev, [savedBusiness.industry]: config }));
         if (savedBusiness.industry) setActivePresetId(savedBusiness.industry);
       } else {
         // Seed default business on first run.
@@ -663,7 +669,7 @@ export function App() {
     <div
       className={
         "min-h-screen transition-colors duration-200 flex flex-col " +
-        (darkMode ? "dark bg-[#0F1115] text-[#F4F2ED]" : "bg-[#F8F6F2] text-[#141413]")
+        (darkMode ? "dark bg-[#0F1115] text-[#EEF2F7]" : "bg-[#F5F7FA] text-[#001435]")
       }
     >
       {/* Top Navigation Bar */}
@@ -702,13 +708,13 @@ export function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24">
         {view === "customer" && (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 px-4 py-2.5">
-            <span className="text-xs text-stone-600 dark:text-stone-300">
+            <span className="text-xs text-slate-600 dark:text-slate-300">
               This is exactly what your customers see at your booking link.
             </span>
             <button
               type="button"
               onClick={() => setView("owner")}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-stone-800 dark:text-stone-200 hover:text-black dark:hover:text-white"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-slate-800 dark:text-slate-200 hover:text-black dark:hover:text-white"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Back to pricing</span>
@@ -720,10 +726,10 @@ export function App() {
             {/* Compact Owner Instruction Line */}
             {view === "owner" && (
             <div className="flex flex-wrap items-center justify-between gap-3 py-1">
-              <p className="text-sm text-stone-700 dark:text-stone-300">
+              <p className="text-sm text-slate-700 dark:text-slate-300">
                 Left: what you control. Right: exactly what your customer sees,{" "}
                 <span
-                  className="font-serif-editorial italic text-base"
+                  className="font-black"
                   style={{ color: currentConfig.accentHex }}
                 >
                   live
@@ -747,10 +753,10 @@ export function App() {
               <section
                 className={
                   "rounded-2xl border p-6 shadow-sm space-y-5 " +
-                  (darkMode ? "bg-[#181B24] border-slate-800" : "bg-white border-[#E5E0D8]")
+                  (darkMode ? "bg-[#181B24] border-slate-800" : "bg-white border-[#E3E8EF]")
                 }
               >
-                <div className="space-y-2.5 border-b pb-4 border-[#E5E0D8] dark:border-slate-800">
+                <div className="space-y-2.5 border-b pb-4 border-[#E3E8EF] dark:border-slate-800">
                   <div className="flex items-center justify-between">
                     <div>
                       <span
@@ -759,7 +765,7 @@ export function App() {
                       >
                         Merchant Configuration
                       </span>
-                      <h2 className="text-lg font-bold tracking-tight mt-0.5">
+                      <h2 className="text-lg font-black tracking-tight mt-0.5">
                         Builder Controls
                       </h2>
                     </div>
@@ -781,7 +787,7 @@ export function App() {
                       "flex items-center gap-2 px-3 py-2 rounded-xl border text-[11px] font-medium " +
                       (darkMode
                         ? "bg-slate-900/90 border-slate-800 text-slate-300"
-                        : "bg-[#FAF8F5] border-[#E5E0D8] text-slate-600")
+                        : "bg-[#F7F9FC] border-[#E3E8EF] text-slate-600")
                     }
                   >
                     <BarChart3 className="w-3.5 h-3.5 shrink-0" style={{ color: currentConfig.accentHex }} />
@@ -795,7 +801,7 @@ export function App() {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="business-name-input"
-                    className="block text-xs font-semibold text-stone-800 dark:text-stone-300"
+                    className="block text-xs font-semibold text-slate-800 dark:text-slate-300"
                   >
                     Business Name
                   </label>
@@ -810,7 +816,7 @@ export function App() {
                         "w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-medium focus:outline-none focus:ring-2 transition-all " +
                         (darkMode
                           ? "bg-slate-900 border-slate-700 text-white"
-                          : "bg-[#FAF8F5] border-[#E5E0D8] text-[#141413]")
+                          : "bg-[#F7F9FC] border-[#E3E8EF] text-[#001435]")
                       }
                       placeholder="Enter your business name"
                     />
@@ -822,11 +828,11 @@ export function App() {
                   <div className="flex items-center justify-between">
                     <label
                       htmlFor="base-fee-input"
-                      className="text-xs font-semibold text-stone-800 dark:text-stone-300"
+                      className="text-xs font-semibold text-slate-800 dark:text-slate-300"
                     >
                       Base Dispatch & Setup Fee ($)
                     </label>
-                    <span className="text-xs text-stone-600 dark:text-stone-400">
+                    <span className="text-xs text-slate-600 dark:text-slate-400">
                       Minimum call-out charge
                     </span>
                   </div>
@@ -849,7 +855,7 @@ export function App() {
                           "w-full pl-8 pr-4 py-2.5 rounded-xl border text-sm font-mono-num font-semibold focus:outline-none focus:ring-2 transition-all " +
                           (darkMode
                             ? "bg-slate-900 border-slate-700 text-white"
-                            : "bg-[#FAF8F5] border-[#E5E0D8] text-[#141413]")
+                            : "bg-[#F7F9FC] border-[#E3E8EF] text-[#001435]")
                         }
                       />
                     </div>
@@ -864,7 +870,7 @@ export function App() {
                         "px-3 py-2.5 rounded-xl border text-sm font-bold transition-colors " +
                         (darkMode
                           ? "bg-slate-900 border-slate-700 hover:bg-slate-800"
-                          : "bg-[#FAF8F5] border-[#E5E0D8] hover:bg-slate-100")
+                          : "bg-[#F7F9FC] border-[#E3E8EF] hover:bg-slate-100")
                       }
                     >
                       −
@@ -880,7 +886,7 @@ export function App() {
                         "px-3 py-2.5 rounded-xl border text-sm font-bold transition-colors " +
                         (darkMode
                           ? "bg-slate-900 border-slate-700 hover:bg-slate-800"
-                          : "bg-[#FAF8F5] border-[#E5E0D8] hover:bg-slate-100")
+                          : "bg-[#F7F9FC] border-[#E3E8EF] hover:bg-slate-100")
                       }
                     >
                       +
@@ -894,15 +900,15 @@ export function App() {
                     "p-4 rounded-xl border space-y-3 " +
                     (darkMode
                       ? "bg-slate-900/60 border-slate-800"
-                      : "bg-[#FAF8F5] border-[#E5E0D8]")
+                      : "bg-[#F7F9FC] border-[#E3E8EF]")
                   }
                 >
                   <div className="flex items-center justify-between">
                     <label
                       htmlFor="rate-slider"
-                      className="text-xs font-semibold text-stone-800 dark:text-stone-300 flex items-center gap-1.5"
+                      className="text-xs font-semibold text-slate-800 dark:text-slate-300 flex items-center gap-1.5"
                     >
-                      <Sliders className="w-3.5 h-3.5 text-stone-500" />
+                      <Sliders className="w-3.5 h-3.5 text-slate-500" />
                       <span>Rate per {currentConfig.unitSingular}</span>
                     </label>
                     <span
@@ -929,7 +935,7 @@ export function App() {
                     }}
                     className="w-full"
                   />
-                  <div className="flex justify-between text-[11px] text-stone-600 dark:text-stone-400">
+                  <div className="flex justify-between text-[11px] text-slate-600 dark:text-slate-400">
                     <span>US Low (${currentConfig.minMultiplier})</span>
                     <span>Multiplied by {currentConfig.sizeLabel.toLowerCase()}</span>
                     <span>US High (${currentConfig.maxMultiplier})</span>
@@ -939,10 +945,10 @@ export function App() {
                 {/* 4. Toggleable Add-on Cards */}
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-stone-800 dark:text-stone-300">
+                    <label className="text-xs font-semibold text-slate-800 dark:text-slate-300">
                       Optional Add-ons ({visibleAddOns.length} of {currentConfig.addOns.length} active)
                     </label>
-                    <span className="text-[11px] text-stone-600 dark:text-stone-400">
+                    <span className="text-[11px] text-slate-600 dark:text-slate-400">
                       Click to show/hide in quote
                     </span>
                   </div>
@@ -960,7 +966,7 @@ export function App() {
                             (active
                               ? darkMode
                                 ? "bg-slate-900 border-slate-700 shadow-sm"
-                                : "bg-white border-[#D5CFC4] shadow-sm"
+                                : "bg-white border-[#CBD5E1] shadow-sm"
                               : darkMode
                               ? "bg-slate-900/30 border-slate-800/60 opacity-50"
                               : "bg-slate-50/60 border-slate-200/70 opacity-55")
@@ -992,8 +998,8 @@ export function App() {
                           <div
                             className="text-xs font-mono-num font-bold shrink-0 px-2.5 py-1 rounded-lg border"
                             style={{
-                              backgroundColor: active ? currentConfig.accentHex + "14" : "#F3EFEA",
-                              borderColor: active ? currentConfig.accentHex + "35" : "#E5E0D8",
+                              backgroundColor: active ? currentConfig.accentHex + "14" : "#EEF3F9",
+                              borderColor: active ? currentConfig.accentHex + "35" : "#E3E8EF",
                               color: active ? currentConfig.accentHex : "#64748B",
                             }}
                           >
@@ -1022,7 +1028,7 @@ export function App() {
                 {/* Preview-as toolbar (Desktop/Mobile toggle moved out of the phone frame) */}
                 <div className="w-full flex items-center justify-between gap-2 mb-3">
                   <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Preview as:</span>
-                  <div className={"flex items-center p-0.5 rounded-lg border " + (darkMode ? "bg-slate-900 border-slate-800" : "bg-[#F3EFEA] border-[#E5E0D8]")}>
+                  <div className={"flex items-center p-0.5 rounded-lg border " + (darkMode ? "bg-slate-900 border-slate-800" : "bg-[#EEF3F9] border-[#E3E8EF]")}>
                     <button
                       type="button"
                       onClick={() => {
@@ -1034,7 +1040,7 @@ export function App() {
                         (previewDevice === "desktop"
                           ? darkMode
                             ? "bg-slate-800 text-white shadow-sm"
-                            : "bg-white text-[#141413] shadow-sm"
+                            : "bg-white text-[#001435] shadow-sm"
                           : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200")
                       }
                     >
@@ -1052,7 +1058,7 @@ export function App() {
                         (previewDevice === "mobile"
                           ? darkMode
                             ? "bg-slate-800 text-white shadow-sm"
-                            : "bg-white text-[#141413] shadow-sm"
+                            : "bg-white text-[#001435] shadow-sm"
                           : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200")
                       }
                     >
@@ -1065,16 +1071,16 @@ export function App() {
                   className={
                     "w-full transition-all duration-500 rounded-2xl border shadow-sm overflow-hidden " +
                     (isMobile
-                      ? "max-w-[405px] rounded-[42px] border-[7px] border-[#141413] dark:border-slate-700 shadow-2xl "
+                      ? "max-w-[405px] rounded-[42px] border-[7px] border-[#001435] dark:border-slate-700 shadow-2xl "
                       : "") +
                     (darkMode
                       ? "bg-[#181B24] border-slate-800"
-                      : "bg-white border-[#E5E0D8]")
+                      : "bg-white border-[#E3E8EF]")
                   }
                 >
                   {/* Dynamic Island Notch when in Mobile Preview mode */}
                   {isMobile && (
-                    <div className="bg-[#141413] text-white pt-2.5 pb-1.5 px-6 flex items-center justify-between text-[10px] font-mono-num">
+                    <div className="bg-[#001435] text-white pt-2.5 pb-1.5 px-6 flex items-center justify-between text-[10px] font-mono-num">
                       <span>9:41</span>
                       <div className="w-24 h-4 bg-black rounded-full border border-slate-800 flex items-center justify-end pr-2">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -1084,7 +1090,7 @@ export function App() {
                   )}
 
                   {/* Top Live Preview Bar */}
-                  <div className="px-4 sm:px-5 py-3 bg-[#141413] text-white flex items-center gap-2">
+                  <div className="px-4 sm:px-5 py-3 bg-[#001435] text-white flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                     <span className="text-xs font-semibold tracking-wide">
                       Live Customer Quote Preview
@@ -1094,7 +1100,7 @@ export function App() {
                   {/* Main Body inside Preview Frame: switches between Calculator OR Inline Booking/Receipt */}
                   {isBookingOpen ? (
                     <div className={isMobile ? "p-4 space-y-4" : "p-6 sm:p-7 space-y-5"}>
-                      <div className="flex items-center justify-between border-b pb-3.5 border-[#E5E0D8] dark:border-slate-800">
+                      <div className="flex items-center justify-between border-b pb-3.5 border-[#E3E8EF] dark:border-slate-800">
                         <button
                           type="button"
                           onClick={() => {
@@ -1124,7 +1130,7 @@ export function App() {
 
                       {bookingStep === "form" ? (
                         <form onSubmit={handleConfirmBooking} className="space-y-4">
-                          <div style={{ backgroundColor: darkMode ? "#1E222B" : "#FAF8F5", borderColor: darkMode ? "#334155" : "#E5E0D8", color: darkMode ? "#F5F3EF" : "#141413" }} className="p-3.5 rounded-xl border flex items-center justify-between gap-2">
+                          <div style={{ backgroundColor: darkMode ? "#1E222B" : "#F7F9FC", borderColor: darkMode ? "#334155" : "#E3E8EF", color: darkMode ? "#F1F5F9" : "#001435" }} className="p-3.5 rounded-xl border flex items-center justify-between gap-2">
                             <div>
                               <div className="text-xs font-bold">
                                 {currentConfig.businessName}
@@ -1157,7 +1163,7 @@ export function App() {
                                     "w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-medium " +
                                     (darkMode
                                       ? "bg-slate-900 border-slate-700 text-white"
-                                      : "bg-[#FAF8F5] border-[#E5E0D8]")
+                                      : "bg-[#F7F9FC] border-[#E3E8EF]")
                                   }
                                 />
                               </div>
@@ -1178,7 +1184,7 @@ export function App() {
                                     "w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-medium " +
                                     (darkMode
                                       ? "bg-slate-900 border-slate-700 text-white"
-                                      : "bg-[#FAF8F5] border-[#E5E0D8]")
+                                      : "bg-[#F7F9FC] border-[#E3E8EF]")
                                   }
                                 />
                               </div>
@@ -1202,7 +1208,7 @@ export function App() {
                                     "w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-mono-num " +
                                     (darkMode
                                       ? "bg-slate-900 border-slate-700 text-white"
-                                      : "bg-[#FAF8F5] border-[#E5E0D8]")
+                                      : "bg-[#F7F9FC] border-[#E3E8EF]")
                                   }
                                 />
                               </div>
@@ -1219,7 +1225,7 @@ export function App() {
                                   "w-full px-3 py-2 rounded-xl border text-xs font-medium " +
                                   (darkMode
                                     ? "bg-slate-900 border-slate-700 text-white"
-                                    : "bg-[#FAF8F5] border-[#E5E0D8]")
+                                    : "bg-[#F7F9FC] border-[#E3E8EF]")
                                 }
                               >
                                 {TIME_SLOTS.map((slot) => (
@@ -1246,7 +1252,7 @@ export function App() {
 
                           <button
                             type="submit"
-                            className="w-full py-3.5 px-5 rounded-xl text-xs sm:text-sm font-bold text-white shadow-md hover:opacity-95 transition-all flex items-center justify-center gap-2"
+                            className="w-full py-3.5 px-5 rounded-full text-xs sm:text-sm font-bold text-white shadow-md hover:opacity-95 transition-all flex items-center justify-center gap-2"
                             style={{ backgroundColor: currentConfig.accentHex }}
                           >
                             <span>Continue to Deposit — ${finalTotal.toFixed(2)}</span>
@@ -1286,7 +1292,7 @@ export function App() {
                   ) : (
                     <div className={isMobile ? "p-4 space-y-5" : "p-5 sm:p-7 space-y-6"}>
                       {/* Customer Widget Header */}
-                      <div className="flex flex-wrap items-start justify-between gap-2 border-b pb-3.5 border-[#E5E0D8] dark:border-slate-800">
+                      <div className="flex flex-wrap items-start justify-between gap-2 border-b pb-3.5 border-[#E3E8EF] dark:border-slate-800">
                         <div>
                           <span
                             className="text-xs font-semibold"
@@ -1294,7 +1300,7 @@ export function App() {
                           >
                             Instant Online Price Calculator
                           </span>
-                          <h3 className={isMobile ? "text-lg font-bold tracking-tight mt-0.5" : "text-xl sm:text-2xl font-bold tracking-tight mt-0.5"}>
+                          <h3 className={isMobile ? "text-lg font-black tracking-tight mt-0.5" : "text-xl sm:text-2xl font-black tracking-tight mt-0.5"}>
                             {currentConfig.businessName || "Your Service Business"}
                           </h3>
                         </div>
@@ -1359,10 +1365,10 @@ export function App() {
                                   (isZoneActive
                                     ? darkMode
                                       ? "bg-slate-900 border-emerald-500/60 shadow-sm"
-                                      : "bg-[#FAF8F5] border-slate-400 shadow-sm"
+                                      : "bg-[#F7F9FC] border-slate-400 shadow-sm"
                                     : darkMode
                                     ? "bg-slate-900/40 border-slate-800 opacity-65 hover:opacity-95"
-                                    : "bg-slate-50/70 border-[#E5E0D8] opacity-70 hover:opacity-100")
+                                    : "bg-slate-50/70 border-[#E3E8EF] opacity-70 hover:opacity-100")
                                 }
                               >
                                 <div className="flex items-start justify-between gap-1 mb-0.5">
@@ -1400,7 +1406,7 @@ export function App() {
                           <span>
                             Min: {currentConfig.minSize.toLocaleString()} {currentConfig.unitLabel}
                           </span>
-                          <div className="inline-flex items-center gap-2.5 px-3 py-1 rounded-full bg-[#141413] text-white text-[11px] font-semibold shadow-sm">
+                          <div className="inline-flex items-center gap-2.5 px-3 py-1 rounded-full bg-[#001435] text-white text-[11px] font-semibold shadow-sm">
                             <span className="flex items-center gap-1">
                               <Users className="w-3 h-3 text-emerald-400" />
                               Est. Crew: {estPros} Pros
@@ -1440,10 +1446,10 @@ export function App() {
                                     (selected
                                       ? darkMode
                                         ? "bg-slate-800 border-white text-white shadow-sm"
-                                        : "bg-[#141413] border-[#141413] text-white shadow-sm"
+                                        : "bg-[#001435] border-[#001435] text-white shadow-sm"
                                       : darkMode
                                       ? "bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700"
-                                      : "bg-[#FAF8F5] border-[#E5E0D8] text-[#141413] hover:border-slate-300")
+                                      : "bg-[#F7F9FC] border-[#E3E8EF] text-[#001435] hover:border-slate-300")
                                   }
                                 >
                                   <div className="text-xs font-bold leading-snug">{opt.label}</div>
@@ -1482,10 +1488,10 @@ export function App() {
                                     (selected
                                       ? darkMode
                                         ? "bg-slate-800 border-white text-white shadow-sm"
-                                        : "bg-[#141413] border-[#141413] text-white shadow-sm"
+                                        : "bg-[#001435] border-[#001435] text-white shadow-sm"
                                       : darkMode
                                       ? "bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700"
-                                      : "bg-[#FAF8F5] border-[#E5E0D8] text-[#141413] hover:border-slate-300")
+                                      : "bg-[#F7F9FC] border-[#E3E8EF] text-[#001435] hover:border-slate-300")
                                   }
                                 >
                                   <div className="text-xs font-bold leading-snug">{opt.label}</div>
@@ -1531,10 +1537,10 @@ export function App() {
                                     (isChecked
                                       ? darkMode
                                         ? "bg-slate-900 border-slate-600 shadow-sm"
-                                        : "bg-[#FAF8F5] border-[#141413] shadow-sm"
+                                        : "bg-[#F7F9FC] border-[#001435] shadow-sm"
                                       : darkMode
                                       ? "bg-slate-900/40 border-slate-800 hover:border-slate-700"
-                                      : "bg-white border-[#E5E0D8] hover:border-slate-300")
+                                      : "bg-white border-[#E3E8EF] hover:border-slate-300")
                                   }
                                 >
                                   <div className="flex items-start gap-3 min-w-0">
@@ -1565,8 +1571,8 @@ export function App() {
                                   <span
                                     className="text-xs font-mono-num font-bold shrink-0 px-2.5 py-1 rounded-lg border"
                                     style={{
-                                      backgroundColor: isChecked ? currentConfig.accentHex + "14" : "#F3EFEA",
-                                      borderColor: isChecked ? currentConfig.accentHex + "35" : "#E5E0D8",
+                                      backgroundColor: isChecked ? currentConfig.accentHex + "14" : "#EEF3F9",
+                                      borderColor: isChecked ? currentConfig.accentHex + "35" : "#E3E8EF",
                                       color: isChecked ? currentConfig.accentHex : "#475569",
                                     }}
                                   >
@@ -1585,20 +1591,20 @@ export function App() {
                           "receipt-paper-edge rounded-2xl border p-4 sm:p-5 space-y-4 transition-colors " +
                           (darkMode
                             ? "bg-[#14171F] border-slate-800"
-                            : "bg-[#FAF8F5] border-[#E5E0D8]")
+                            : "bg-[#F7F9FC] border-[#E3E8EF]")
                         }
                       >
                         <div className="flex items-center justify-between border-b border-dashed border-slate-300 dark:border-slate-700 pb-3">
-                          <span className="text-xs font-bold uppercase tracking-wider text-stone-700 dark:text-stone-300">
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                             Itemized Instant Estimate
                           </span>
-                          <span className="text-xs font-mono-num font-semibold text-stone-700 dark:text-stone-300">
+                          <span className="text-xs font-mono-num font-semibold text-slate-700 dark:text-slate-300">
                             {currentConfig.businessName}
                           </span>
                         </div>
 
                         <div className="space-y-2 text-xs">
-                          <div className={"flex justify-between gap-2 text-stone-800 dark:text-stone-200 " + flashLineClass("baseFee")}>
+                          <div className={"flex justify-between gap-2 text-slate-800 dark:text-slate-200 " + flashLineClass("baseFee")}>
                             <span className="flex items-center gap-1.5">
                               Base dispatch & setup fee
                               {isFlashed("baseFee") && (
@@ -1610,7 +1616,7 @@ export function App() {
                             </span>
                           </div>
 
-                          <div className={"flex justify-between gap-2 text-stone-800 dark:text-stone-200 " + flashLineClass("sizeCharge")}>
+                          <div className={"flex justify-between gap-2 text-slate-800 dark:text-slate-200 " + flashLineClass("sizeCharge")}>
                             <span className="flex items-center gap-1.5">
                               {currentConfig.sizeLabel} ({customerSize.toLocaleString()}{" "}
                               {currentConfig.unitLabel} × ${currentConfig.multiplier})
@@ -1626,7 +1632,7 @@ export function App() {
                           {activeCustomerAddOns.map((addon) => (
                             <div
                               key={addon.id}
-                              className={"flex justify-between gap-2 text-stone-800 dark:text-stone-200 " + flashLineClass(addon.id)}
+                              className={"flex justify-between gap-2 text-slate-800 dark:text-slate-200 " + flashLineClass(addon.id)}
                             >
                               <span className="flex items-center gap-1.5">
                                 {addon.name}
@@ -1664,10 +1670,10 @@ export function App() {
                         <div className="border-t border-dashed border-slate-300 dark:border-slate-700 pt-4 space-y-3.5">
                           <div className="flex items-baseline justify-between gap-2">
                             <div>
-                              <div className="text-xs font-bold text-stone-900 dark:text-stone-100">
+                              <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
                                 Total Guaranteed Price
                               </div>
-                              <div className="text-[11px] text-stone-600 dark:text-stone-400">
+                              <div className="text-[11px] text-slate-600 dark:text-slate-400">
                                 No hidden fees • Cancel anytime
                               </div>
                             </div>
@@ -1685,7 +1691,7 @@ export function App() {
                           <button
                             type="button"
                             onClick={handleOpenBooking}
-                            className="w-full py-3.5 px-6 rounded-xl text-sm font-bold text-white shadow-md hover:opacity-95 transition-all flex items-center justify-center gap-2"
+                            className="w-full py-3.5 px-6 rounded-full text-sm font-bold text-white shadow-md hover:opacity-95 transition-all flex items-center justify-center gap-2"
                             style={{ backgroundColor: currentConfig.accentHex }}
                           >
                             <span>Book This Price — ${finalTotal.toFixed(2)}</span>
@@ -1716,7 +1722,7 @@ export function App() {
                 "rounded-2xl border p-6 flex flex-wrap items-center justify-between gap-4 " +
                 (darkMode
                   ? "bg-[#181B24] border-slate-800"
-                  : "bg-white border-[#E5E0D8]")
+                  : "bg-white border-[#E3E8EF]")
               }
             >
               <div>
@@ -1726,7 +1732,7 @@ export function App() {
                 >
                   Live Quote Pipeline
                 </span>
-                <h2 className="text-2xl font-bold tracking-tight mt-0.5">
+                <h2 className="text-2xl font-black tracking-tight mt-0.5">
                   Customer Quotes & Bookings CRM
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">
@@ -1735,9 +1741,9 @@ export function App() {
               </div>
 
               <div className="flex items-center gap-4">
-                <div className="px-4 py-2.5 rounded-xl bg-[#FAF8F5] dark:bg-slate-900 border border-[#E5E0D8] dark:border-slate-800">
-                  <div className="text-[11px] text-stone-600 dark:text-stone-400">Total Pipeline Value</div>
-                  <div className="text-lg font-mono-num font-bold text-stone-900 dark:text-white">
+                <div className="px-4 py-2.5 rounded-xl bg-[#F7F9FC] dark:bg-slate-900 border border-[#E3E8EF] dark:border-slate-800">
+                  <div className="text-[11px] text-slate-600 dark:text-slate-400">Total Pipeline Value</div>
+                  <div className="text-lg font-mono-num font-bold text-slate-900 dark:text-white">
                     $
                     {crmLeads
                       .reduce((s, l) => s + l.totalPrice, 0)
@@ -1749,7 +1755,7 @@ export function App() {
                     setView("owner");
                     setActiveTab("builder");
                   }}
-                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-white"
+                  className="px-4 py-2.5 rounded-full text-xs font-semibold text-white"
                   style={{ backgroundColor: currentConfig.accentHex }}
                 >
                   + Create New Quote
@@ -1773,15 +1779,15 @@ export function App() {
                       "rounded-2xl border p-4 space-y-3 snap-center shrink-0 w-[78vw] max-w-[320px] md:w-auto md:max-w-none md:shrink " +
                       (darkMode
                         ? "bg-[#181B24] border-slate-800"
-                        : "bg-[#F3EFEA]/70 border-[#E5E0D8]")
+                        : "bg-[#EEF3F9]/70 border-[#E3E8EF]")
                     }
                   >
                     <div className="flex items-center justify-between px-1">
                       <div className="flex items-center gap-2">
                         <span className={"w-2 h-2 rounded-full " + col.badgeBg} />
-                        <h3 className="text-sm font-bold">{col.title}</h3>
+                        <h3 className="text-sm font-black">{col.title}</h3>
                       </div>
-                      <span className="text-xs font-mono-num font-semibold px-2 py-0.5 rounded-full bg-white dark:bg-slate-800 border border-[#E5E0D8] dark:border-slate-700">
+                      <span className="text-xs font-mono-num font-semibold px-2 py-0.5 rounded-full bg-white dark:bg-slate-800 border border-[#E3E8EF] dark:border-slate-700">
                         {colLeads.length}
                       </span>
                     </div>
@@ -1794,7 +1800,7 @@ export function App() {
                             "p-4 rounded-xl border shadow-sm space-y-3 transition-all duration-700 " +
                             (darkMode
                               ? "bg-slate-900 border-slate-800"
-                              : "bg-white border-[#E5E0D8]") +
+                              : "bg-white border-[#E3E8EF]") +
                             (lead.isNew
                               ? " ring-2 ring-amber-400 ring-offset-1"
                               : "")
@@ -1838,7 +1844,7 @@ export function App() {
                             </div>
                           </div>
 
-                          <div className="text-xs text-slate-600 dark:text-slate-300 bg-[#FAF8F5] dark:bg-slate-800/70 p-2.5 rounded-lg border border-[#E5E0D8] dark:border-slate-800">
+                          <div className="text-xs text-slate-600 dark:text-slate-300 bg-[#F7F9FC] dark:bg-slate-800/70 p-2.5 rounded-lg border border-[#E3E8EF] dark:border-slate-800">
                             <div className="font-semibold text-[11px] text-slate-400 mb-0.5">
                               {lead.industryLabel} • {lead.frequencyLabel}
                             </div>
@@ -1849,7 +1855,7 @@ export function App() {
                             <button
                               type="button"
                               onClick={() => handleCopyFollowUp(lead)}
-                              className="flex-1 py-1.5 px-2.5 rounded-lg border border-[#E5E0D8] dark:border-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                              className="flex-1 py-1.5 px-2.5 rounded-lg border border-[#E3E8EF] dark:border-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                             >
                               {copiedLeadId === lead.id ? (
                                 <>
@@ -1900,7 +1906,7 @@ export function App() {
               "w-full max-w-3xl rounded-2xl border shadow-xl p-6 space-y-4 max-h-[90vh] overflow-y-auto " +
               (darkMode
                 ? "bg-[#181B24] border-slate-800 text-white"
-                : "bg-white border-[#E5E0D8] text-[#141413]")
+                : "bg-white border-[#E3E8EF] text-[#001435]")
             }
           >
             <div className="flex items-center justify-between">
@@ -1911,7 +1917,7 @@ export function App() {
                 >
                   Revenue Impact Simulator
                 </span>
-                <h2 className="text-2xl font-bold tracking-tight mt-0.5">
+                <h2 className="text-2xl font-black tracking-tight mt-0.5">
                   How Much Revenue Does Instant Quoting Unlock?
                 </h2>
               </div>
@@ -1941,7 +1947,7 @@ export function App() {
                 </div>
               </div>
 
-              <div className="p-5 rounded-2xl border border-[#E5E0D8] dark:border-slate-800 bg-[#FAF8F5] dark:bg-slate-900">
+              <div className="p-5 rounded-2xl border border-[#E3E8EF] dark:border-slate-800 bg-[#F7F9FC] dark:bg-slate-900">
                 <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
                   <Percent className="w-4 h-4" />
                   <span>Booked Jobs per Month</span>
@@ -1955,7 +1961,7 @@ export function App() {
                 </div>
               </div>
 
-              <div className="p-5 rounded-2xl border border-[#E5E0D8] dark:border-slate-800 bg-[#FAF8F5] dark:bg-slate-900">
+              <div className="p-5 rounded-2xl border border-[#E3E8EF] dark:border-slate-800 bg-[#F7F9FC] dark:bg-slate-900">
                 <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
                   <Clock className="w-4 h-4" />
                   <span>Phone & Admin Time Saved</span>
@@ -1969,7 +1975,7 @@ export function App() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-[#E5E0D8] dark:border-slate-800">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-[#E3E8EF] dark:border-slate-800">
               <div className="space-y-2">
                 <div className="flex justify-between text-xs font-semibold">
                   <span>Monthly Website Visitors</span>
@@ -2024,7 +2030,7 @@ export function App() {
               "w-full max-w-lg rounded-2xl border shadow-xl p-6 space-y-4 " +
               (darkMode
                 ? "bg-[#181B24] border-slate-800 text-white"
-                : "bg-white border-[#E5E0D8] text-[#141413]")
+                : "bg-white border-[#E3E8EF] text-[#001435]")
             }
           >
             <div className="flex items-center justify-between">
@@ -2035,7 +2041,7 @@ export function App() {
                 >
                   1-Click Website Integration
                 </span>
-                <h3 className="text-lg font-bold">
+                <h3 className="text-lg font-black">
                   Embed {currentConfig.businessName} Calculator
                 </h3>
               </div>
@@ -2060,7 +2066,7 @@ export function App() {
               <button
                 type="button"
                 onClick={handleCopyEmbed}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-1.5"
+                className="px-4 py-2.5 rounded-full text-xs font-bold text-white flex items-center gap-1.5"
                 style={{ backgroundColor: currentConfig.accentHex }}
               >
                 {embedCopied ? (
@@ -2088,7 +2094,7 @@ export function App() {
             "fixed bottom-4 left-4 z-50 max-w-[320px] rounded-2xl border shadow-xl p-3.5 flex items-start gap-3 " +
             (darkMode
               ? "bg-[#181B24] border-slate-700 text-white"
-              : "bg-white border-[#E5E0D8] text-[#141413]") +
+              : "bg-white border-[#E3E8EF] text-[#001435]") +
             (prefersReducedMotion.current
               ? " animate-fade-in-static"
               : " animate-toast-slide-in")

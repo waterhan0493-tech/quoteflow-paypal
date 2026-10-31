@@ -39,17 +39,17 @@ export function ReceiptCard({
         </div>
       </div>
 
-      <div style={{ backgroundColor: darkMode ? "#1E222B" : "#FAF8F5", borderColor: darkMode ? "#334155" : "#E5E0D8", color: darkMode ? "#F5F3EF" : "#141413" }} className="receipt-paper-edge p-4 sm:p-5 rounded-xl border space-y-3">
+      <div style={{ backgroundColor: darkMode ? "#1E222B" : "#F7F9FC", borderColor: darkMode ? "#334155" : "#E3E8EF", color: darkMode ? "#F1F5F9" : "#001435" }} className="receipt-paper-edge p-4 sm:p-5 rounded-xl border space-y-3">
         <div className="flex items-start justify-between gap-2 border-b border-dashed border-slate-300 dark:border-slate-700 pb-3">
           <div>
             <span className="text-[11px] font-semibold text-emerald-600 block">
               ✓ Guaranteed Booking Confirmed
             </span>
-            <h4 className="text-base sm:text-lg font-bold leading-snug">
+            <h4 className="text-base sm:text-lg font-black leading-snug">
               {businessName}
             </h4>
           </div>
-          <span style={{ backgroundColor: darkMode ? "#0F1115" : "#FFFFFF", borderColor: darkMode ? "#334155" : "#E5E0D8", color: darkMode ? "#F5F3EF" : "#141413" }} className="text-xs font-mono-num font-bold px-2.5 py-1 rounded-lg border shrink-0">
+          <span style={{ backgroundColor: darkMode ? "#0F1115" : "#FFFFFF", borderColor: darkMode ? "#334155" : "#E3E8EF", color: darkMode ? "#F1F5F9" : "#001435" }} className="text-xs font-mono-num font-bold px-2.5 py-1 rounded-lg border shrink-0">
             #{receipt.quoteId}
           </span>
         </div>
@@ -83,7 +83,7 @@ export function ReceiptCard({
             <img
               src={receipt.signatureDataUrl}
               alt="Customer signature"
-              className="h-9 object-contain bg-white rounded px-2 border border-[#E5E0D8]"
+              className="h-9 object-contain bg-white rounded px-2 border border-[#E3E8EF]"
             />
           </div>
         )}
@@ -126,7 +126,7 @@ export function ReceiptCard({
         <button
           type="button"
           onClick={onPrint}
-          className="py-2.5 px-3 rounded-xl border border-[#E5E0D8] dark:border-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5"
+          className="py-2.5 px-3 rounded-xl border border-[#E3E8EF] dark:border-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5"
         >
           <Printer className="w-3.5 h-3.5" />
           <span>Print Receipt</span>
@@ -134,7 +134,7 @@ export function ReceiptCard({
         <button
           type="button"
           onClick={onCloseAndOpenCrm}
-          className="py-2.5 px-3 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-1.5"
+          className="py-2.5 px-3 rounded-full text-xs font-bold text-white flex items-center justify-center gap-1.5"
           style={{ backgroundColor: accentHex }}
         >
           <span>Open Lead CRM</span>

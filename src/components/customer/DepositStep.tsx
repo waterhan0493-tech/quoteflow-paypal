@@ -38,9 +38,9 @@ export function DepositStep({
   const clientId = paypalClientId();
 
   const panel = {
-    backgroundColor: darkMode ? "#1E222B" : "#FAF8F5",
-    borderColor: darkMode ? "#334155" : "#E5E0D8",
-    color: darkMode ? "#F5F3EF" : "#141413",
+    backgroundColor: darkMode ? "#1E222B" : "#F7F9FC",
+    borderColor: darkMode ? "#334155" : "#E3E8EF",
+    color: darkMode ? "#F1F5F9" : "#001435",
   };
 
   return (
@@ -198,7 +198,7 @@ function DemoDepositButton({
             paidAt: new Date().toISOString(),
           })
         }
-        className="w-full py-3.5 px-5 rounded-xl text-xs sm:text-sm font-bold text-white shadow-md hover:opacity-95 flex items-center justify-center gap-2"
+        className="w-full py-3.5 px-5 rounded-full text-xs sm:text-sm font-bold text-white shadow-md hover:opacity-95 flex items-center justify-center gap-2"
         style={{ backgroundColor: accentHex }}
       >
         <Lock className="w-4 h-4" />
