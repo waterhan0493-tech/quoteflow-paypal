@@ -94,6 +94,10 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
   // Deposit
   const [agreed, setAgreed] = useState(false);
   const [booking, setBooking] = useState<QuoteRecord | null>(null);
+  // Set once PayPal (or the demo button) took the deposit, so a failed save never asks to pay twice.
+  const [payment, setPayment] = useState<DepositPayment | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const quote = priceQuote(config, { size, addOnIds, urgency, frequency });
   const deposit = depositFor(quote.total);
@@ -119,7 +123,10 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
     else if (dayIndex === 0) setDayIndex(1);
   };
 
-  const finish = async (payment: DepositPayment) => {
+  const finish = async (paid: DepositPayment) => {
+    setPayment(paid);
+    setSaving(true);
+    setSaveError("");
     const scopeAddOns = quote.addOns.length > 0 ? quote.addOns.map((a) => a.name).join(", ") : "Base package";
     const saved = await createQuote(slug, {
       customerName: name.trim(),
@@ -134,11 +141,14 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
       dateSlot: isoDate(day),
       timeSlot: ARRIVAL_WINDOWS[windowIndex],
       status: "booked",
-      createdAt: "Just now",
-      isHotLead: quote.total >= 300 || urgency === "rush",
       signatureDataUrl: signature,
-      deposit: payment,
+      deposit: paid,
+    }).catch((err: Error) => {
+      setSaveError(err.message);
+      return null;
     });
+    setSaving(false);
+    if (!saved) return;
     setBooking(saved);
     goto("done");
   };
@@ -151,11 +161,13 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
     setWindowIndex(0);
     setAgreed(false);
     setBooking(null);
+    setPayment(null);
+    setSaveError("");
     goto("quote");
   };
 
   const stepIndex = STEPS.findIndex((s) => s.id === step);
-  const back: Record<Step, Step | null> = { quote: null, time: "quote", details: "time", deposit: "details", done: null };
+  const back: Record<Step, Step | null> = { quote: null, time: "quote", details: "time", deposit: payment ? null : "details", done: null };
 
   return (
     <div className="min-h-screen bg-white text-ink">
@@ -440,7 +452,32 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
               </span>
               <span>I agree to the quote and to paying the rest after the job.</span>
             </button>
-            {agreed ? (
+            {payment ? (
+              <div className="space-y-3" role="status">
+                {saving ? (
+                  <p className="flex items-center justify-center gap-2 py-3 text-sm font-bold text-muted">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving your booking…
+                  </p>
+                ) : (
+                  saveError && (
+                    <>
+                      <p className="rounded-[14px] bg-[#FDECEC] text-[#8A1C1C] text-sm px-4 py-3">
+                        Your {formatMoney(payment.amount)} deposit went through (order {payment.orderId}), but the
+                        booking did not save. {saveError}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => finish(payment)}
+                        className="w-full rounded-full bg-ink text-white py-3 font-extrabold hover:bg-[#0A2A5C]"
+                      >
+                        Try saving again
+                      </button>
+                    </>
+                  )
+                )}
+              </div>
+            ) : agreed ? (
               <div className="space-y-2">
                 <DepositButtons
                   amount={deposit}

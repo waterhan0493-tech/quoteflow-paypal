@@ -15,7 +15,26 @@ _TODO_
 
 ## Run locally
 
-_TODO_
+Requires Node.js 22.9 or newer.
+
+```sh
+npm install
+cp .env.example .env    # optional: fill in keys (see below)
+npm run server          # API on http://localhost:8787
+npm run dev             # app on http://localhost:5173 (proxies /api to the server)
+```
+
+Every key is optional. Without one, that part runs in a local fallback:
+
+| Variable | Without it |
+|---|---|
+| `VITE_PAYPAL_CLIENT_ID` | A demo deposit button instead of PayPal |
+| `ANTHROPIC_API_KEY` | The AI quote box says it is offline |
+| `SUPABASE_URL`, `SUPABASE_SECRET_KEY` | Bookings live in server memory and reset on restart |
+
+To keep data in Supabase, create a project and run [`supabase/schema.sql`](supabase/schema.sql) once in its SQL Editor.
+
+Pages: `/` overview, `/b/sparkle-co` customer booking page, `/dashboard` owner dashboard.
 
 ## Testing with the PayPal sandbox
 

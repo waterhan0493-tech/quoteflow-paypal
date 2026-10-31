@@ -8,9 +8,12 @@ export function bookingPath(slug: string): string {
   return "/b/" + slug;
 }
 
-/** Saved config for a slug; the demo business falls back to its preset so its link always works. */
+/**
+ * Saved config for a slug. The demo business falls back to its preset so its link always works,
+ * even before the owner saves prices or while the server is unreachable.
+ */
 export async function loadBusinessConfig(slug: string): Promise<IndustryConfig | null> {
-  const saved = await getBusiness(slug);
+  const saved = await getBusiness(slug).catch(() => null);
   if (saved?.config) return saved.config;
   return slug === DEMO_SLUG ? INITIAL_PRESETS.cleaning : null;
 }

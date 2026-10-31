@@ -29,7 +29,9 @@ export class SoundEngine {
       gain.connect(ctx.destination);
       osc.start();
       osc.stop(ctx.currentTime + 0.03);
-    } catch {}
+    } catch {
+      // Audio is optional; ignore browsers that block it.
+    }
   }
 
   playToggle(on = true) {
@@ -49,7 +51,9 @@ export class SoundEngine {
       gain.connect(ctx.destination);
       osc.start();
       osc.stop(ctx.currentTime + 0.075);
-    } catch {}
+    } catch {
+      // Audio is optional; ignore browsers that block it.
+    }
   }
 
   playScanChime() {
@@ -69,7 +73,9 @@ export class SoundEngine {
         osc.start(start);
         osc.stop(start + 0.24);
       });
-    } catch {}
+    } catch {
+      // Audio is optional; ignore browsers that block it.
+    }
   }
 
   playStampSuccess() {
@@ -89,7 +95,9 @@ export class SoundEngine {
         osc.start(start);
         osc.stop(start + 0.36);
       });
-    } catch {}
+    } catch {
+      // Audio is optional; ignore browsers that block it.
+    }
   }
 }
 

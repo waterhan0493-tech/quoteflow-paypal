@@ -10,9 +10,9 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
-  // In dev, the Express server (npm run server) answers /api.
+  // In dev, the Express server (npm run server) answers /api. API_URL points elsewhere if needed.
   server: {
-    proxy: { '/api': 'http://localhost:8787' },
+    proxy: { '/api': process.env.API_URL || 'http://localhost:8787' },
   },
   optimizeDeps: {
     exclude: ['lucide-react'],

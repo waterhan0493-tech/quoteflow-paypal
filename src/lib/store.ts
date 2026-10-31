@@ -1,6 +1,8 @@
 import type { IndustryConfig, PresetId } from "@/data/industries";
 import type { DepositPayment } from "@/lib/deposit";
 
+// Client for the QuoteFlow server (server/index.mjs). The server keeps the data in Supabase.
+
 export type LeadStatus = "new" | "sent" | "booked";
 
 export interface QuoteRecord {
@@ -14,15 +16,19 @@ export interface QuoteRecord {
   totalPrice: number;
   urgency: "standard" | "rush";
   frequencyLabel: string;
+  /** YYYY-MM-DD */
   dateSlot: string;
   timeSlot: string;
   status: LeadStatus;
+  /** ISO timestamp set by the server. */
   createdAt: string;
-  isHotLead?: boolean;
-  isNew?: boolean;
   signatureDataUrl?: string;
   deposit?: DepositPayment;
 }
+
+export type NewBooking = Omit<QuoteRecord, "id" | "quoteId" | "createdAt" | "deposit"> & {
+  deposit: DepositPayment;
+};
 
 export interface BusinessRecord {
   slug: string;
@@ -31,123 +37,69 @@ export interface BusinessRecord {
   config: IndustryConfig;
 }
 
-const BUSINESS_KEY = (slug: string) => `qf:business:${slug}`;
-const QUOTES_KEY = (slug: string) => `qf:quotes:${slug}`;
-const ALL_BUSINESSES_KEY = "qf:businesses";
-
-const memoryFallback = new Map<string, string>();
-
-function readKey(key: string): string | null {
-  try {
-    if (typeof window !== "undefined" && window.localStorage) {
-      return window.localStorage.getItem(key);
-    }
-  } catch {
-    // localStorage may be blocked (private mode, sandbox); fall through to memory
-  }
-  return memoryFallback.has(key) ? memoryFallback.get(key)! : null;
-}
-
-function writeKey(key: string, value: string): void {
-  try {
-    if (typeof window !== "undefined" && window.localStorage) {
-      window.localStorage.setItem(key, value);
-      return;
-    }
-  } catch {
-    // fall through to memory
-  }
-  memoryFallback.set(key, value);
-}
-
-function parse<T>(raw: string | null, fallback: T): T {
-  if (!raw) return fallback;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string
+  ) {
+    super(message);
   }
 }
 
-function generateQuoteId(): string {
-  const num = Math.floor(1000 + Math.random() * 9000);
-  return `QF-${num}`;
+async function api<T>(path: string, init?: { method: string; body: unknown }): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch("/api" + path, {
+      method: init?.method ?? "GET",
+      headers: init ? { "Content-Type": "application/json" } : undefined,
+      body: init ? JSON.stringify(init.body) : undefined,
+    });
+  } catch {
+    throw new ApiError(0, "Could not reach QuoteFlow. Check your connection.");
+  }
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new ApiError(res.status, data?.message ?? "Something went wrong. Please try again.");
+  return data as T;
 }
+
+const businessPath = (slug: string) => "/businesses/" + encodeURIComponent(slug);
 
 export async function getBusiness(slug: string): Promise<BusinessRecord | null> {
-  const raw = readKey(BUSINESS_KEY(slug));
-  return parse<BusinessRecord | null>(raw, null);
+  try {
+    return (await api<{ business: BusinessRecord }>(businessPath(slug))).business;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
 }
 
 export async function saveBusiness(business: BusinessRecord): Promise<void> {
-  writeKey(BUSINESS_KEY(business.slug), JSON.stringify(business));
-  const allRaw = readKey(ALL_BUSINESSES_KEY);
-  const all = parse<string[]>(allRaw, []);
-  if (!all.includes(business.slug)) {
-    all.push(business.slug);
-    writeKey(ALL_BUSINESSES_KEY, JSON.stringify(all));
-  }
+  await api(businessPath(business.slug), { method: "PUT", body: { config: business.config } });
 }
 
 export async function listQuotes(slug: string): Promise<QuoteRecord[]> {
-  const raw = readKey(QUOTES_KEY(slug));
-  return parse<QuoteRecord[]>(raw, []);
+  return (await api<{ bookings: QuoteRecord[] }>(businessPath(slug) + "/bookings")).bookings;
 }
 
-export async function createQuote(
-  slug: string,
-  quote: Omit<QuoteRecord, "quoteId" | "id">
-): Promise<QuoteRecord> {
-  const existing = await listQuotes(slug);
-  let quoteId = generateQuoteId();
-  while (existing.some((q) => q.quoteId === quoteId)) {
-    quoteId = generateQuoteId();
-  }
-  const record: QuoteRecord = {
-    ...quote,
-    id: `lead-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-    quoteId,
-  };
-  const next = [record, ...existing];
-  writeKey(QUOTES_KEY(slug), JSON.stringify(next));
-  return record;
+/** Saves a paid booking. Sending the same deposit order again returns the booking saved the first time. */
+export async function createQuote(slug: string, booking: NewBooking): Promise<QuoteRecord> {
+  return (await api<{ booking: QuoteRecord }>(businessPath(slug) + "/bookings", { method: "POST", body: booking }))
+    .booking;
 }
 
-export async function updateQuoteStatus(
-  id: string,
-  status: LeadStatus
-): Promise<void> {
-  // Quotes are stored per-business slug; scan known business slugs.
-  const allRaw = readKey(ALL_BUSINESSES_KEY);
-  const slugs = parse<string[]>(allRaw, []);
-  for (const slug of slugs) {
-    const quotes = await listQuotes(slug);
-    const idx = quotes.findIndex((q) => q.id === id);
-    if (idx !== -1) {
-      quotes[idx] = { ...quotes[idx], status };
-      writeKey(QUOTES_KEY(slug), JSON.stringify(quotes));
-      return;
-    }
-  }
-  // If not found in any business, no-op (defensive).
-}
-
-export function subscribeQuotes(
-  slug: string,
-  callback: (quotes: QuoteRecord[]) => void
-): () => void {
-  const handler = (e: StorageEvent) => {
-    if (e.key === QUOTES_KEY(slug)) {
-      const next = parse<QuoteRecord[]>(e.newValue, []);
-      callback(next);
-    }
-  };
-  if (typeof window !== "undefined") {
-    window.addEventListener("storage", handler);
-  }
-  return () => {
-    if (typeof window !== "undefined") {
-      window.removeEventListener("storage", handler);
-    }
-  };
+/** Calls back with the fresh list whenever a booking is saved, from any device. */
+export function subscribeQuotes(slug: string, callback: (quotes: QuoteRecord[]) => void): () => void {
+  const source = new EventSource("/api" + businessPath(slug) + "/events");
+  const refresh = () =>
+    listQuotes(slug).then(callback, () => {
+      // Keep the list on screen; the next event or reconnect tries again.
+    });
+  source.addEventListener("bookings", refresh);
+  // After a dropped connection, catch up on anything saved in between.
+  let opened = false;
+  source.addEventListener("open", () => {
+    if (opened) refresh();
+    opened = true;
+  });
+  return () => source.close();
 }

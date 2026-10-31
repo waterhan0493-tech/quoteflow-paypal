@@ -52,15 +52,25 @@ export function Dashboard() {
   const [section, setSection] = useState<Section>(sectionFromHash);
   const [config, setConfig] = useState<IndustryConfig | null>(null);
   const [quotes, setQuotes] = useState<QuoteRecord[]>([]);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     document.title = "Dashboard · QuoteFlow";
     const onHash = () => setSection(sectionFromHash());
     window.addEventListener("hashchange", onHash);
     loadBusinessConfig(slug).then(setConfig);
-    listQuotes(slug).then(setQuotes);
-    // A booking made in another tab (or in the preview) shows up here at once.
-    const unsub = subscribeQuotes(slug, setQuotes);
+    listQuotes(slug).then(
+      (q) => {
+        setQuotes(q);
+        setLoadError("");
+      },
+      (err: Error) => setLoadError(err.message)
+    );
+    // A booking made on any device shows up here at once.
+    const unsub = subscribeQuotes(slug, (q) => {
+      setQuotes(q);
+      setLoadError("");
+    });
     return () => {
       window.removeEventListener("hashchange", onHash);
       unsub();
@@ -136,6 +146,11 @@ export function Dashboard() {
 
       <main className="flex-1 min-w-0 px-5 sm:px-8 py-7 lg:py-9">
         <div className="max-w-[1080px] mx-auto">
+          {loadError && (
+            <p role="alert" className="mb-5 rounded-[14px] bg-[#FDECEC] text-[#8A1C1C] text-sm font-semibold px-4 py-3">
+              Bookings could not load. {loadError}
+            </p>
+          )}
           {section === "home" && <HomeSection config={config} slug={slug} bookings={bookings} onOpen={go} />}
           {section === "bookings" && <BookingsSection bookings={bookings} slug={slug} />}
           {section === "pricing" && <PricingSection config={config} slug={slug} onChange={setConfig} />}
@@ -374,7 +389,8 @@ function PricingSection({
   slug: string;
   onChange: (c: IndustryConfig) => void;
 }) {
-  const [saved, setSaved] = useState<"idle" | "saving" | "saved">("idle");
+  const [saved, setSaved] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveError, setSaveError] = useState("");
   const [previewKey, setPreviewKey] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -387,9 +403,14 @@ function PricingSection({
     setSaved("saving");
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
-      await saveBusinessConfig(slug, next);
-      setSaved("saved");
-      setPreviewKey((k) => k + 1);
+      try {
+        await saveBusinessConfig(slug, next);
+        setSaved("saved");
+        setPreviewKey((k) => k + 1);
+      } catch (err) {
+        setSaved("error");
+        setSaveError((err as Error).message);
+      }
     }, 500);
   };
 
@@ -403,8 +424,8 @@ function PricingSection({
           <h1 className="text-[32px] leading-tight font-black tracking-tight">Pricing</h1>
           <p className="text-muted">Customers see these prices on your booking page. Changes save as you type.</p>
         </div>
-        <span className="text-[13px] font-bold text-muted" role="status">
-          {saved === "saving" ? "Saving…" : saved === "saved" ? "Saved" : ""}
+        <span className={"text-[13px] font-bold " + (saved === "error" ? "text-[#B42318]" : "text-muted")} role="status">
+          {saved === "saving" ? "Saving…" : saved === "saved" ? "Saved" : saved === "error" ? "Not saved. " + saveError : ""}
         </span>
       </div>
 
