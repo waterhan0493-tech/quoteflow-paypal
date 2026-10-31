@@ -399,9 +399,6 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
               <p className="text-[13px] text-red-700 -mt-3">Enter an email like name@example.com.</p>
             )}
             <SignaturePad
-              accentHex="#0070E0"
-              autoSignName={name.trim() || "Customer"}
-              shouldAutoSign={false}
               onSigned={setSignature}
               onClear={() => setSignature("")}
             />

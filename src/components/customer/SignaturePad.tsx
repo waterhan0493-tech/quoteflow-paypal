@@ -1,156 +1,138 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { PenTool, RotateCcw } from "lucide-react";
-import { soundFX } from "@/lib/sound";
+import { useEffect, useRef, useState } from "react";
+import { RotateCcw } from "lucide-react";
 
 interface SignaturePadProps {
-  accentHex: string;
-  autoSignName: string;
-  shouldAutoSign: boolean;
   onSigned: (dataUrl: string) => void;
   onClear: () => void;
 }
 
-export function SignaturePad({
-  accentHex,
-  autoSignName,
-  shouldAutoSign,
-  onSigned,
-  onClear,
-}: SignaturePadProps) {
-  const [hasSigned, setHasSigned] = useState<boolean>(false);
-  const sigCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const isDrawingRef = useRef<boolean>(false);
+/** A finger or mouse signature. Calls onSigned with a PNG data URL after each stroke. */
+export function SignaturePad({ onSigned, onClear }: SignaturePadProps) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawing = useRef(false);
+  const last = useRef<{ x: number; y: number } | null>(null);
+  const [hasSigned, setHasSigned] = useState(false);
+  const hasInk = useRef(false);
+  const onClearRef = useRef(onClear);
+  onClearRef.current = onClear;
 
-  const initSignatureCanvas = useCallback(() => {
-    const canvas = sigCanvasRef.current;
+  // Keep the drawing buffer the same size as the box on screen (times the screen's pixel density).
+  // Otherwise the browser stretches the buffer and the line lands beside the pointer.
+  useEffect(() => {
+    const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = "#E3E8EF";
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.moveTo(20, canvas.height - 22);
-    ctx.lineTo(canvas.width - 20, canvas.height - 22);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    const fit = () => {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.round(rect.width * dpr);
+      const height = Math.round(rect.height * dpr);
+      if (width === 0 || (canvas.width === width && canvas.height === height)) return;
+      const hadInk = canvas.width > 0 && hasInk.current;
+      canvas.width = width; // resizing wipes the canvas
+      canvas.height = height;
+      canvas.getContext("2d")?.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (hadInk) {
+        hasInk.current = false;
+        setHasSigned(false);
+        onClearRef.current();
+      }
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(canvas);
+    return () => observer.disconnect();
   }, []);
 
-  const drawAutoSignature = useCallback(
-    (nameText: string) => {
-      const canvas = sigCanvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      initSignatureCanvas();
-      ctx.save();
-      ctx.font = 'italic 28px "Instrument Serif", Georgia, serif';
-      ctx.fillStyle = "#001435";
-      ctx.fillText(nameText || "Alex Rivera", 28, canvas.height - 28);
-      ctx.strokeStyle = accentHex;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(24, canvas.height - 18);
-      ctx.quadraticCurveTo(120, canvas.height - 28, 225, canvas.height - 15);
-      ctx.stroke();
-      ctx.restore();
-      setHasSigned(true);
-      onSigned(canvas.toDataURL("image/png"));
-      soundFX.playToggle(true);
-    },
-    [accentHex, initSignatureCanvas, onSigned]
-  );
+  const point = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
 
-  useEffect(() => {
-    if (shouldAutoSign) {
-      setTimeout(() => {
-        drawAutoSignature(autoSignName);
-      }, 60);
-    }
-  }, [shouldAutoSign, drawAutoSignature, autoSignName]);
-
-  const handleSigPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = sigCanvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    isDrawingRef.current = true;
+  const pen = (ctx: CanvasRenderingContext2D) => {
     ctx.strokeStyle = "#001435";
-    ctx.lineWidth = 2.2;
+    ctx.fillStyle = "#001435";
+    ctx.lineWidth = 2.4;
     ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.lineJoin = "round";
   };
 
-  const handleSigPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawingRef.current) return;
-    const canvas = sigCanvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const ctx = canvas.getContext("2d");
+  const down = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const ctx = e.currentTarget.getContext("2d");
     if (!ctx) return;
-    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
-    ctx.stroke();
-    setHasSigned(true);
+    e.currentTarget.setPointerCapture(e.pointerId); // keep drawing if the finger slips outside
+    drawing.current = true;
+    const p = point(e);
+    last.current = p;
+    pen(ctx);
+    ctx.beginPath(); // a tap leaves a dot
+    ctx.arc(p.x, p.y, 1.2, 0, Math.PI * 2);
+    ctx.fill();
   };
 
-  const handleSigPointerUp = () => {
-    if (!isDrawingRef.current) return;
-    isDrawingRef.current = false;
-    const canvas = sigCanvasRef.current;
-    if (canvas) {
-      onSigned(canvas.toDataURL("image/png"));
+  const move = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawing.current || !last.current) return;
+    const ctx = e.currentTarget.getContext("2d");
+    if (!ctx) return;
+    const p = point(e);
+    pen(ctx);
+    ctx.beginPath();
+    ctx.moveTo(last.current.x, last.current.y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    last.current = p;
+    if (!hasInk.current) {
+      hasInk.current = true;
+      setHasSigned(true);
     }
   };
 
-  const clearSignature = () => {
-    initSignatureCanvas();
+  const up = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawing.current) return;
+    drawing.current = false;
+    last.current = null;
+    if (hasInk.current) onSigned(e.currentTarget.toDataURL("image/png"));
+  };
+
+  const clear = () => {
+    const canvas = canvasRef.current;
+    if (canvas) canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+    hasInk.current = false;
     setHasSigned(false);
     onClear();
-    soundFX.playTick(400);
   };
 
   return (
     <div className="space-y-1.5">
-      <div className="flex flex-wrap items-center justify-between gap-1">
-        <label className="text-xs font-semibold flex items-center gap-1.5">
-          <PenTool className="w-3.5 h-3.5 text-slate-400" />
-          <span>Customer Approval Signature</span>
-        </label>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <span id="qf-signature-label" className="text-[13px] font-bold text-muted">
+          Signature
+        </span>
+        {hasSigned && (
           <button
             type="button"
-            onClick={() => drawAutoSignature(autoSignName)}
-            className="text-[11px] font-semibold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+            onClick={clear}
+            className="inline-flex items-center gap-1 text-[13px] font-bold text-muted hover:text-ink"
           >
-            ✨ 1-Click Auto-Sign
+            <RotateCcw className="w-3.5 h-3.5" />
+            Clear
           </button>
-          <button
-            type="button"
-            onClick={clearSignature}
-            className="text-[11px] text-slate-400 hover:text-slate-600 flex items-center gap-0.5"
-          >
-            <RotateCcw className="w-3 h-3" /> Clear
-          </button>
-        </div>
+        )}
       </div>
-      <div className="rounded-xl border border-[#E3E8EF] bg-[#F7F9FC] overflow-hidden relative">
+      <div className="relative rounded-[14px] border border-line bg-white">
         <canvas
-          ref={sigCanvasRef}
-          width={340}
-          height={88}
-          onPointerDown={handleSigPointerDown}
-          onPointerMove={handleSigPointerMove}
-          onPointerUp={handleSigPointerUp}
-          onPointerLeave={handleSigPointerUp}
-          className="w-full h-[88px] cursor-crosshair touch-none"
+          ref={canvasRef}
+          aria-labelledby="qf-signature-label"
+          onPointerDown={down}
+          onPointerMove={move}
+          onPointerUp={up}
+          onPointerCancel={up}
+          className="block w-full h-[120px] cursor-crosshair touch-none rounded-[14px]"
         />
+        <div className="pointer-events-none absolute left-4 right-4 bottom-7 border-b border-dashed border-[#C9D2DE]" />
         {!hasSigned && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-xs text-slate-400">
-            Sign here with mouse/finger or click Auto-Sign
-          </div>
+          <p className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[15px] text-muted">
+            Sign here with your finger or mouse
+          </p>
         )}
       </div>
     </div>
