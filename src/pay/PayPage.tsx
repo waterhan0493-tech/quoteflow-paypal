@@ -72,7 +72,7 @@ export function PayPage({ id }: { id: string }) {
   }
   if (!view) {
     return (
-      <div className="min-h-screen bg-white grid place-items-center px-6 text-center text-ink">
+      <div className="min-h-screen bg-canvas grid place-items-center px-6 text-center text-ink">
         <div className="space-y-2 max-w-sm">
           <h1 className="text-2xl font-black">This payment link does not work</h1>
           <p className="text-muted">{loadError || "Check the link you were sent, or ask the business for a new one."}</p>
@@ -83,112 +83,128 @@ export function PayPage({ id }: { id: string }) {
 
   const paid = view.status === "paid";
   const cancelled = view.status === "cancelled";
+  const due = !paid && !cancelled;
+  const firstName = view.customerName.split(" ")[0];
 
   return (
-    <div className="min-h-screen bg-white text-ink">
-      <div className="max-w-[520px] mx-auto px-5 py-8 space-y-5">
+    <div className="min-h-screen bg-canvas text-ink">
+      <div className="max-w-[480px] mx-auto px-4 sm:px-5 py-8 sm:py-14 space-y-4">
         <p className="text-center font-black text-[17px]">{view.businessName}</p>
 
-        {paid ? (
-          <div className="space-y-3 pt-2">
-            <span className="w-12 h-12 rounded-full bg-success-soft text-success grid place-items-center">
-              <Check className="w-6 h-6" strokeWidth={3} />
-            </span>
-            <h1 className="text-[28px] leading-[1.1] font-black tracking-tight">Paid in full</h1>
-            <p className="text-muted text-[15px]">Thank you, {view.customerName.split(" ")[0]}. Nothing more is due.</p>
-          </div>
-        ) : cancelled ? (
-          <div className="space-y-2 pt-2">
-            <h1 className="text-[28px] leading-[1.1] font-black tracking-tight">This booking was cancelled</h1>
-            <p className="text-muted text-[15px]">Your deposit was refunded. Nothing is due.</p>
-          </div>
-        ) : (
-          <div className="space-y-2 pt-2">
-            <h1 className="text-[28px] leading-[1.1] font-black tracking-tight">Pay your balance</h1>
-            <p className="text-muted text-[15px]">
-              Hi {view.customerName.split(" ")[0]}, here is what is left for your visit.
-            </p>
-          </div>
-        )}
-
-        <div className="rounded-[18px] border border-line p-5 space-y-3.5">
-          <div className="flex justify-between items-baseline text-[13px] text-muted gap-3">
-            <span>{visitText(view)}</span>
-            <span className="tabular-nums">{view.quoteId}</span>
-          </div>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between gap-3">
-              <span>
-                {view.industryLabel} · {view.scopeSummary}
-              </span>
-            </div>
-            <Row label="Total" amount={view.totalPrice} />
-            <Row label="Deposit paid" amount={-view.depositAmount} />
-            <div className="border-t border-line pt-2.5">
-              <Row label={paid ? "Balance paid" : "Balance due"} amount={view.balanceAmount} strong />
-            </div>
-          </div>
-          {paid && view.balanceOrderId && (
-            <p className="text-xs text-muted tabular-nums break-all">Order {view.balanceOrderId}</p>
-          )}
-        </div>
-
-        {!paid && !cancelled && config && (
-          <div className="space-y-3">
-            {paymentNotice(config) && (
-              <div className="bg-[#FFF4CC] text-[#6B4E00] text-xs font-bold px-3 py-2 rounded-[10px] flex gap-2 items-center">
-                <Lock className="w-[15px] h-[15px]" />
-                {paymentNotice(config)}
-              </div>
-            )}
-            {payment ? (
-              <div role="status" className="space-y-3">
-                {saving ? (
-                  <p className="flex items-center justify-center gap-2 py-3 text-sm font-bold text-muted">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Confirming your payment…
-                  </p>
-                ) : (
-                  saveError && (
-                    <>
-                      <p className="rounded-[14px] bg-[#FDECEC] text-[#8A1C1C] text-sm px-4 py-3">
-                        We could not confirm the payment yet (order {payment.orderId}). Trying again will not charge you
-                        twice. {saveError}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => finish(payment)}
-                        className="w-full rounded-full bg-ink text-white py-3 font-extrabold hover:bg-[#0A2A5C]"
-                      >
-                        Try again
-                      </button>
-                    </>
-                  )
-                )}
-              </div>
+        <div className="bg-white border border-line rounded-[20px] overflow-hidden shadow-[0_22px_46px_-34px_rgba(0,20,53,0.45)]">
+          {/* The one number this page is about */}
+          <div className="px-6 pt-6 pb-5">
+            {paid ? (
+              <>
+                <p className="inline-flex items-center gap-1.5 rounded-full bg-success-soft text-success px-2.5 py-1 text-xs font-extrabold">
+                  <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                  Paid in full
+                </p>
+                <div className="mt-3 text-[48px] leading-none font-black tracking-[-0.03em] tabular-nums">
+                  {formatMoney(view.totalPrice)}
+                </div>
+                <p className="mt-2 text-[15px] text-muted">Thank you, {firstName}. Nothing more is due.</p>
+              </>
+            ) : cancelled ? (
+              <>
+                <p className="inline-flex rounded-full bg-canvas text-muted px-2.5 py-1 text-xs font-extrabold">Cancelled</p>
+                <h1 className="mt-3 text-[28px] leading-[1.1] font-black tracking-tight">This booking was cancelled</h1>
+                <p className="mt-2 text-[15px] text-muted">Your deposit was refunded. Nothing is due.</p>
+              </>
             ) : (
               <>
-                {payError && (
-                  <p role="alert" className="rounded-[14px] bg-[#FDECEC] text-[#8A1C1C] text-sm px-4 py-3">
-                    {payError}
-                  </p>
-                )}
-                <PaymentButtons
-                  clientId={config.paypalClientId}
-                  amount={view.balanceAmount}
-                  what="balance"
-                  createOrder={() => createBalanceOrder(id)}
-                  onApproved={finish}
-                />
-                {config.paypalClientId && (
-                  <p className="text-xs text-muted text-center flex items-center justify-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-success" />
-                    Paid through PayPal. QuoteFlow never sees your card.
-                  </p>
-                )}
+                <h1 className="text-[13px] font-bold text-muted">Balance due</h1>
+                <div className="mt-1 text-[48px] leading-none font-black tracking-[-0.03em] tabular-nums">
+                  {formatMoney(view.balanceAmount)}
+                </div>
+                <p className="mt-2 text-[15px] text-muted">Hi {firstName}, this is what is left for your visit.</p>
               </>
             )}
           </div>
+
+          {/* Receipt */}
+          <div className="border-t border-line px-6 py-5 space-y-2.5 text-sm">
+            <div className="flex justify-between gap-3 text-[13px] text-muted">
+              <span>{visitText(view)}</span>
+              <span className="tabular-nums shrink-0">{view.quoteId}</span>
+            </div>
+            <p className="text-muted">
+              {view.industryLabel} · {view.scopeSummary}
+            </p>
+            <Row label="Total" amount={view.totalPrice} />
+            <Row label={cancelled ? "Deposit refunded" : "Deposit paid"} amount={cancelled ? view.depositAmount : -view.depositAmount} />
+            {!cancelled && (
+              <div className="border-t border-line pt-2.5">
+                <Row label={paid ? "Balance paid" : "Balance due"} amount={view.balanceAmount} strong />
+              </div>
+            )}
+            {paid && view.balanceOrderId && (
+              <p className="text-xs text-muted tabular-nums break-all">
+                {view.balanceOrderId.startsWith("DEMO-") ? "Demo order " : "PayPal order "}
+                {view.balanceOrderId}
+              </p>
+            )}
+          </div>
+
+          {/* Pay */}
+          {due && config && (
+            <div className="border-t border-line px-6 py-5 space-y-3">
+              {paymentNotice(config) && (
+                <div className="bg-[#FFF4CC] text-[#6B4E00] text-xs font-bold px-3 py-2 rounded-[10px] flex gap-2 items-center">
+                  <Lock className="w-[15px] h-[15px]" />
+                  {paymentNotice(config)}
+                </div>
+              )}
+              {payment ? (
+                <div role="status" className="space-y-3">
+                  {saving ? (
+                    <p className="flex items-center justify-center gap-2 py-3 text-sm font-bold text-muted">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Confirming your payment…
+                    </p>
+                  ) : (
+                    saveError && (
+                      <>
+                        <p className="rounded-[14px] bg-[#FDECEC] text-[#8A1C1C] text-sm px-4 py-3">
+                          We could not confirm the payment yet (order {payment.orderId}). Trying again will not charge you
+                          twice. {saveError}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => finish(payment)}
+                          className="w-full rounded-full bg-ink text-white py-3 font-extrabold hover:bg-[#0A2A5C]"
+                        >
+                          Try again
+                        </button>
+                      </>
+                    )
+                  )}
+                </div>
+              ) : (
+                <>
+                  {payError && (
+                    <p role="alert" className="rounded-[14px] bg-[#FDECEC] text-[#8A1C1C] text-sm px-4 py-3">
+                      {payError}
+                    </p>
+                  )}
+                  <PaymentButtons
+                    clientId={config.paypalClientId}
+                    amount={view.balanceAmount}
+                    what="balance"
+                    createOrder={() => createBalanceOrder(id)}
+                    onApproved={finish}
+                  />
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {due && config?.paypalClientId && (
+          <p className="text-xs text-muted text-center flex items-center justify-center gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-success" />
+            Paid through PayPal. QuoteFlow never sees your card.
+          </p>
         )}
       </div>
     </div>
