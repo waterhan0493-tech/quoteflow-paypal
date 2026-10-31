@@ -1,0 +1,29 @@
+# Render Blueprint: Dashboard > New > Blueprint > pick this repository.
+# Render asks for each "sync: false" value once; paste them there, never in the repo.
+services:
+  - type: web
+    name: quoteflow
+    runtime: node
+    region: virginia
+    plan: free
+    # Vite and Tailwind are dev dependencies, so install them for the build.
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Read at build time by Vite. PayPal Developer Dashboard > Apps & Credentials > Sandbox.
+      - key: VITE_PAYPAL_CLIENT_ID
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      # Shared demo owner password; Render makes a random one.
+      - key: DEMO_OWNER_PASSWORD
+        generateValue: true

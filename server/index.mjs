@@ -290,8 +290,9 @@ app.use((err, _req, res, _next) => {
 });
 
 // Static app + SPA fallback (only when a build exists).
+// Missing build files get a real 404, so a stale page fails loudly instead of loading HTML as JS.
 app.use(express.static(distDir));
-app.get(/^(?!\/api\/).*/, (_req, res, next) => {
+app.get(/^(?!\/api\/|\/assets\/).*/, (_req, res, next) => {
   res.sendFile(path.join(distDir, "index.html"), (err) => err && next());
 });
 
