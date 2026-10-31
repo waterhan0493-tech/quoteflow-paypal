@@ -5,7 +5,7 @@ services:
     name: quoteflow
     runtime: node
     region: virginia
-    plan: starter # always on; the free plan sleeps after 15 idle minutes
+    plan: free # sleeps after 15 idle minutes; keep it awake with a 10-minute ping to /api/health
     # Vite and Tailwind are dev dependencies, so install them for the build.
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
