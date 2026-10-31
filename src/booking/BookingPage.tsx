@@ -176,10 +176,17 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
 
   const stepIndex = STEPS.findIndex((s) => s.id === step);
   const back: Record<Step, Step | null> = { quote: null, time: "quote", details: "time", deposit: payment ? null : "details", done: null };
+  const nextStep: Step = step === "quote" ? "time" : step === "time" ? "details" : "deposit";
+  const nextLabel = step === "quote" ? "Choose a time" : step === "time" ? "Continue" : "Go to deposit";
+  const nextDisabled = step === "details" && !detailsReady;
+  // Wide screens get a two-column layout with the booking summary on the right.
+  const wide = step !== "done";
 
   return (
     <div className="min-h-screen bg-white text-ink">
-      <div className="max-w-[520px] mx-auto px-5 pb-36">
+      <div className={"max-w-[520px] mx-auto px-5 pb-36 lg:pb-16" + (wide ? " lg:max-w-[1080px] lg:px-8" : "")}>
+        <div className={wide ? "lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-12 lg:items-start" : ""}>
+        <div className="min-w-0">
         {/* Top bar */}
         <header className="sticky top-0 z-10 bg-white pt-3 pb-3 space-y-3">
           <div className="h-10 flex items-center justify-between gap-3">
@@ -316,7 +323,7 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
                 <Line label={quote.frequency.label + " plan (" + quote.frequency.badge + ")"} amount={-quote.discount} />
               )}
 
-              <div className="border-t-[1.5px] border-dashed border-line pt-3 flex justify-between items-baseline">
+              <div className="lg:hidden border-t-[1.5px] border-dashed border-line pt-3 flex justify-between items-baseline">
                 <span className="text-[13px] font-bold text-muted">Total</span>
                 <span className="text-[40px] leading-none font-black tracking-tight tabular-nums">
                   {formatMoney(quote.total)}
@@ -333,7 +340,7 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
               <h2 className="text-[17px] font-extrabold">
                 {day.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
               </h2>
-              <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5 [scrollbar-width:none]">
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5 [scrollbar-width:none] lg:mx-0 lg:px-0">
                 {days.map((d, i) => {
                   const on = i === dayIndex;
                   return (
@@ -417,7 +424,7 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
                 {paymentNotice(publicConfig)}
               </div>
             )}
-            <div className="rounded-[18px] border border-line p-5 space-y-3.5">
+            <div className="lg:hidden rounded-[18px] border border-line p-5 space-y-3.5">
               <div className="flex justify-between items-baseline text-[13px] text-muted gap-3">
                 <span>
                   {dayLong} · {ARRIVAL_WINDOWS[windowIndex]}
@@ -551,11 +558,63 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
             </button>
           </div>
         )}
+        </div>
+
+        {wide && (
+          <aside className="hidden lg:block sticky top-6 mt-4 rounded-[20px] border border-line bg-white p-5 space-y-3.5 shadow-[0_22px_46px_-34px_rgba(0,20,53,0.45)]">
+            <div>
+              <h2 className="text-[15px] font-extrabold">Your booking</h2>
+              <p className="text-[13px] text-muted">
+                {config.label} · {quote.frequency.label}
+              </p>
+            </div>
+            <div className="border-t-[1.5px] border-dashed border-line" />
+            <div className="space-y-2 text-sm">
+              <Line label="Base visit" amount={quote.baseFee} />
+              <Line label={"Size charge (" + sizeText + ")"} amount={quote.sizeCharge} />
+              {quote.addOns.map((a) => (
+                <Line key={a.id} label={a.name} amount={a.price} />
+              ))}
+              {quote.rushFee > 0 && <Line label="Next-day rush (+20%)" amount={quote.rushFee} />}
+              {quote.discount > 0 && (
+                <Line label={quote.frequency.label + " plan (" + quote.frequency.badge + ")"} amount={-quote.discount} />
+              )}
+            </div>
+            <div className="border-t-[1.5px] border-dashed border-line pt-3 flex justify-between items-baseline">
+              <span className="text-[13px] font-bold text-muted">Total</span>
+              <span className="text-[40px] leading-none font-black tracking-tight tabular-nums">{formatMoney(quote.total)}</span>
+            </div>
+            <Split deposit={deposit} balance={balance} />
+            <div className="rounded-xl bg-canvas px-3 py-2.5 text-[13px]">
+              {step === "quote" ? (
+                <>
+                  Visit time: <b>choose in the next step</b>
+                </>
+              ) : (
+                <>
+                  <b>{dayLong}</b> · {ARRIVAL_WINDOWS[windowIndex]}
+                </>
+              )}
+            </div>
+            {step !== "deposit" && (
+              <button
+                type="button"
+                disabled={nextDisabled}
+                onClick={() => goto(nextStep)}
+                className="w-full rounded-full py-3.5 font-extrabold text-[15px] text-white bg-brand hover:bg-brand-dark disabled:bg-[#9AA6B6] disabled:cursor-not-allowed transition-colors"
+              >
+                {nextLabel}
+              </button>
+            )}
+            <p className="text-xs text-muted text-center">The deposit comes off the final bill.</p>
+          </aside>
+        )}
+        </div>
       </div>
 
       {/* Bottom bar: running total and the one next action */}
       {(step === "quote" || step === "time" || step === "details") && (
-        <div className="fixed bottom-0 inset-x-0 bg-white border-t border-line">
+        <div className="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t border-line">
           <div className="max-w-[520px] mx-auto px-5 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] flex items-center gap-3">
             <div className="flex-1 grid leading-tight">
               {step === "quote" ? (
@@ -574,11 +633,11 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
             </div>
             <button
               type="button"
-              disabled={step === "details" && !detailsReady}
-              onClick={() => goto(step === "quote" ? "time" : step === "time" ? "details" : "deposit")}
+              disabled={nextDisabled}
+              onClick={() => goto(nextStep)}
               className="rounded-full px-6 py-3 font-extrabold text-[15px] text-white bg-brand hover:bg-brand-dark disabled:bg-[#9AA6B6] disabled:cursor-not-allowed transition-colors"
             >
-              {step === "quote" ? "Choose a time" : step === "time" ? "Continue" : "Go to deposit"}
+              {nextLabel}
             </button>
           </div>
         </div>
@@ -647,7 +706,7 @@ function AskBox({
         </div>
       </div>
       {config.samplePrompts.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto -mx-5 px-5 [scrollbar-width:none]">
+        <div className="flex gap-2 overflow-x-auto -mx-5 px-5 [scrollbar-width:none] lg:mx-0 lg:px-0 lg:flex-wrap">
           {config.samplePrompts.map((p) => (
             <button
               key={p.id}
