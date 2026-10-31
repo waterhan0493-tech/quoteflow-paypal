@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, Loader2, Lock, ShieldCheck } from "lucide-react";
-import { INITIAL_PRESETS, type IndustryConfig } from "@/data/industries";
-import { createQuote, getBusiness, type QuoteRecord } from "@/lib/store";
+import type { IndustryConfig } from "@/data/industries";
+import { createQuote, type QuoteRecord } from "@/lib/store";
+import { loadBusinessConfig } from "@/lib/business";
 import { FREQUENCY_OPTIONS, formatMoney, priceQuote, type Frequency } from "@/lib/pricing";
 import { requestAiQuote } from "@/lib/aiQuote";
 import { depositFor, paypalClientId, type DepositPayment } from "@/lib/deposit";
 import { DepositButtons } from "@/components/customer/DepositStep";
 import { SignaturePad } from "@/components/customer/SignaturePad";
-
-/** The demo business seeded by the owner app; its page works even before the owner app has run. */
-const DEMO_SLUG = "sparkle-co";
 
 const ARRIVAL_WINDOWS = ["8:00 – 10:00 AM", "10:00 AM – 12:00 PM", "1:00 – 3:00 PM", "3:00 – 5:00 PM"];
 const BOOKABLE_DAYS = 14;
@@ -42,11 +40,8 @@ export function BookingPage({ slug }: { slug: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    getBusiness(slug).then((b) => {
-      if (cancelled) return;
-      if (b?.config) setConfig(b.config);
-      else if (slug === DEMO_SLUG) setConfig(INITIAL_PRESETS.cleaning);
-      else setConfig(null);
+    loadBusinessConfig(slug).then((c) => {
+      if (!cancelled) setConfig(c);
     });
     return () => {
       cancelled = true;
