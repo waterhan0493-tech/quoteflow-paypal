@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test": "node --test \"server/*.test.mjs\"",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "server": "node --env-file-if-exists=.env server/index.mjs",
     "start": "node server/index.mjs"

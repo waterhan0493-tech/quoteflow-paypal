@@ -19,6 +19,7 @@ QuoteFlow gives each business one booking link. The customer describes the job i
 **For the customer**
 
 - AI quote assistant: Claude reads a plain sentence such as "3 bedroom house, need it tomorrow" and fills in the quote. The customer can check and change every option.
+- Booking agent: the customer can book the whole visit by chat. The agent asks for what is missing, prices the job, and opens a PayPal order for the customer to approve.
 - Itemized quote, arrival time selection, and an e-signature.
 - PayPal deposit of 25% of the total (minimum $10), with a receipt that shows the PayPal order number.
 - A balance page at `/pay/<booking id>` that reads like an invoice.
@@ -62,6 +63,17 @@ sequenceDiagram
 | Refund on cancellation | `POST /v2/payments/captures/{id}/refund` |
 
 The server rejects a changed price, an order for different options, and an order the buyer did not approve. When PayPal keys are set, it also rejects demo payments. Client secrets stay on the server.
+
+### The booking agent
+
+Claude runs a tool loop on the server (`server/agent.mjs`) with two tools. The agent has a limited role in the payment:
+
+| The agent can | The agent cannot |
+|---|---|
+| Get a price from the server (`quote_job`) | Set or change a price |
+| Open a PayPal deposit order (`prepare_booking`) | Approve or capture a payment |
+
+The customer sees a card with the amount, the date, and their details, and approves the order in PayPal. Then the standard booking route checks and captures the order. A message such as "make it $1" cannot change the amount, because the server calculates the price from the owner's settings.
 
 ## Tech stack
 
@@ -108,6 +120,10 @@ Sandbox payments use test money. You need a PayPal sandbox **Personal** account 
 6. Select **Request balance**, open the link, and pay the balance. The booking changes to paid in full.
 7. On a different booking, select **Cancel and refund**. The server refunds the deposit through PayPal.
 
+To test the booking agent, select **Or book the whole visit by chat** on the booking page. Describe the job, give a date, an arrival window, a name, and an email, then approve the deposit on the card.
+
+Run the server tests with `npm test`.
+
 To run this with your own keys, create a sandbox app in the [PayPal Developer Dashboard](https://developer.paypal.com/) under Apps & Credentials, and put its keys in `.env`.
 
 ## What changed since October 1, 2026
@@ -115,7 +131,7 @@ To run this with your own keys, create a sandbox app in the [PayPal Developer Da
 The first version of QuoteFlow was built on October 13-18, 2026, with no payments and no server. The commit history starts from that export. This repository added:
 
 - All PayPal payments: deposit, balance, and refund, through the server.
-- The AI quote assistant.
+- The AI quote assistant and the booking agent.
 - A server, a database, and owner accounts, so each business has its own booking page.
 - New customer booking, owner dashboard, balance, and landing pages.
 

@@ -8,11 +8,10 @@ import { loadBusinessConfig } from "@/lib/business";
 import { FREQUENCY_OPTIONS, formatMoney, priceQuote, type Frequency, type Urgency } from "@/lib/pricing";
 import { requestAiQuote } from "@/lib/aiQuote";
 import { depositFor } from "@/lib/deposit";
+import { ARRIVAL_WINDOWS, BOOKABLE_DAYS } from "@/lib/schedule";
 import { PaymentButtons } from "@/components/PaymentButtons";
 import { SignaturePad } from "@/components/customer/SignaturePad";
-
-const ARRIVAL_WINDOWS = ["8:00 – 10:00 AM", "10:00 AM – 12:00 PM", "1:00 – 3:00 PM", "3:00 – 5:00 PM"];
-const BOOKABLE_DAYS = 14;
+import { BookingAgent } from "./BookingAgent";
 
 type Step = "quote" | "time" | "details" | "deposit" | "done";
 const STEPS: { id: Step; label: string }[] = [
@@ -76,6 +75,7 @@ export function BookingPage({ slug }: { slug: string }) {
 
 function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig }) {
   const [step, setStep] = useState<Step>("quote");
+  const [chatting, setChatting] = useState(false);
 
   // Quote
   const [size, setSize] = useState(config.defaultSize);
@@ -174,6 +174,8 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
     goto("quote");
   };
 
+  if (chatting) return <BookingAgent slug={slug} config={config} onExit={() => setChatting(false)} />;
+
   const stepIndex = STEPS.findIndex((s) => s.id === step);
   const back: Record<Step, Step | null> = { quote: null, time: "quote", details: "time", deposit: payment ? null : "details", done: null };
   const nextStep: Step = step === "quote" ? "time" : step === "time" ? "details" : "deposit";
@@ -237,6 +239,14 @@ function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig })
             </div>
 
             <AskBox config={config} onApply={applySuggestion} />
+
+            <button
+              type="button"
+              onClick={() => setChatting(true)}
+              className="text-sm font-bold text-brand hover:underline"
+            >
+              Or book the whole visit by chat
+            </button>
 
             <div className="rounded-[18px] border border-line p-5 space-y-4">
               <div className="flex justify-between items-baseline text-[13px] text-muted">

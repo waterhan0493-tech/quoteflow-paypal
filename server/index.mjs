@@ -5,6 +5,7 @@ import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { AiQuoteRequest, aiConfigured, suggestQuote, AI_MODEL } from "./aiQuote.mjs";
+import { AgentRequest, runAgent } from "./agent.mjs";
 import { createAuth } from "./auth.mjs";
 import { createDb } from "./db.mjs";
 import {
@@ -318,6 +319,48 @@ api.put("/:slug", limitWrites, requireOwner, async (req, res) => {
 // Owner only: the list includes customer emails.
 api.get("/:slug/bookings", requireOwner, async (req, res) => {
   res.json({ bookings: await db.listBookings(req.slug) });
+});
+
+// The booking agent: Claude quotes with the server's prices and can open a PayPal deposit order.
+// The customer still approves the order; the normal booking route below captures it.
+api.post("/:slug/agent", async (req, res) => {
+  const input = AgentRequest.safeParse(req.body);
+  if (!input.success) return res.status(400).json({ error: "bad_request", message: "That message could not be sent." });
+  if (!aiConfigured()) {
+    return res.status(503).json({ error: "ai_unavailable", message: "The AI assistant is offline right now." });
+  }
+  const found = await configFor(req.slug);
+  if (!found) return res.status(404).json({ error: "not_found", message: "No such business." });
+  const limited = aiLimit(req.ip || "unknown");
+  if (limited) {
+    return res.status(429).json({
+      error: "rate_limited",
+      message: limited === "daily" ? "The AI assistant has hit today's limit. Please use the booking form." : "Too many messages. Please wait a minute.",
+    });
+  }
+  try {
+    res.json(
+      await runAgent({
+        ...input.data,
+        slug: req.slug,
+        businessName: found.name,
+        config: found.config,
+        createOrder: paypalConfigured
+          ? (quote) =>
+              createOrder({
+                amount: quote.deposit,
+                description: "Deposit: " + found.config.label + ", " + quote.scopeSummary,
+                customId: depositCustomId(req.slug, quote),
+                referenceId: req.slug,
+                brandName: found.name,
+              })
+          : null,
+      })
+    );
+  } catch (err) {
+    console.error("[agent] failed:", err?.code || [err?.status, err?.error?.error?.type || err?.message].filter(Boolean).join(" "));
+    res.status(502).json({ error: "ai_error", message: "The assistant is unavailable. Please use the booking form." });
+  }
 });
 
 // Step 1 of a PayPal deposit: the server prices the selection and opens an order for the deposit.

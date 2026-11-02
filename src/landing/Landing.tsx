@@ -8,7 +8,7 @@ import { DEPOSIT_RATE, depositFor } from "@/lib/deposit";
 import { MoneyFlow, ServerChecks } from "./Sections";
 
 const FACTS = [
-  "AI turns one sentence into a priced quote.",
+  "An AI agent quotes and books by chat.",
   `A ${Math.round(DEPOSIT_RATE * 100)}% PayPal deposit locks the date.`,
   "Balance links and refunds in one click.",
 ];
