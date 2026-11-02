@@ -110,7 +110,10 @@ Pages: `/` overview, `/b/sparkle-co` customer booking page, `/dashboard` owner d
 
 Sandbox payments use test money. You need a PayPal sandbox **Personal** account to pay.
 
-**Sandbox buyer account:** SANDBOX_BUYER_DETAILS
+**Sandbox buyer account** (test money only):
+
+- Email: `sb-5ppaf53646428@personal.example.com`
+- Password: `JLJJXx%3`
 
 1. Open <https://quoteflow-2vql.onrender.com/b/sparkle-co>.
 2. Type a job description into the AI box, or set the options by hand.
