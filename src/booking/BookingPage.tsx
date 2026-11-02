@@ -75,7 +75,7 @@ export function BookingPage({ slug }: { slug: string }) {
 
 function BookingFlow({ slug, config }: { slug: string; config: IndustryConfig }) {
   const [step, setStep] = useState<Step>("quote");
-  const [chatting, setChatting] = useState(false);
+  const [chatting, setChatting] = useState(() => new URLSearchParams(window.location.search).has("chat"));
 
   // Quote
   const [size, setSize] = useState(config.defaultSize);

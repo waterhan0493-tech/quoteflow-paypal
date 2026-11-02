@@ -85,7 +85,10 @@ function priceJob(input, { config, today }) {
   });
 }
 
+const weekday = (iso) => new Date(iso + "T00:00:00Z").toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
+
 const quoteView = (q, date) => ({
+  weekday: date ? weekday(date) : undefined,
   scopeSummary: q.scopeSummary,
   frequency: q.frequencyLabel,
   urgency: q.urgency,
@@ -138,7 +141,7 @@ function systemPrompt({ businessName, config, today }) {
   return `You are the booking assistant for ${businessName}. You help a customer book one visit by chat.
 
 Business options as JSON: ${JSON.stringify(options)}
-Today is ${today}. Visits can be booked from tomorrow for ${BOOKABLE_DAYS} days. Tomorrow costs 20% more (next-day rush).
+Today is ${weekday(today)}, ${today}. Visits can be booked from tomorrow for ${BOOKABLE_DAYS} days. Tomorrow costs 20% more (next-day rush).
 Arrival windows: ${ARRIVAL_WINDOWS.join("; ")}.
 A deposit is due now and comes off the final bill. The customer pays the balance after the job.
 
@@ -149,6 +152,7 @@ Steps:
 4. When the customer accepts and you have those details, call prepare_booking at once. Do not ask them to confirm again. Then tell them to check the card and approve the payment.
 
 Rules:
+- Name a weekday only if a tool returned it.
 - Never state an amount that did not come from a tool in this conversation.
 - You cannot change prices, give discounts, or take payment.
 - Write two or three short sentences of plain English, with no Markdown.

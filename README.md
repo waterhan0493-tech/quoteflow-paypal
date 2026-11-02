@@ -75,6 +75,8 @@ Claude runs a tool loop on the server (`server/agent.mjs`) with two tools. The a
 
 The customer sees a card with the amount, the date, and their details, and approves the order in PayPal. Then the standard booking route checks and captures the order. A message such as "make it $1" cannot change the amount, because the server calculates the price from the owner's settings.
 
+![The booking agent with the approval card](docs/screenshots/agent.png)
+
 ## Tech stack
 
 React, TypeScript, Vite, and Tailwind in the browser. Express on Node.js 24 on the server, on Render. Supabase for the database and owner sign-in. PayPal Orders and Payments APIs. Claude Haiku 5.5 with structured output for the AI quote assistant, with per-IP and daily limits on calls.

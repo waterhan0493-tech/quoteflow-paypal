@@ -22,6 +22,11 @@ test("a job can be priced before a date is chosen", async () => {
   await assert.rejects(runTool("prepare_booking", { ...noDate, ...person }, ctx));
 });
 
+test("the weekday comes from the server", async () => {
+  const { result } = await runTool("quote_job", { ...job, date: "2026-11-07" }, ctx);
+  assert.equal(result.weekday, "Saturday");
+});
+
 test("tomorrow is a rush visit, whatever the model asks for", async () => {
   const { result } = await runTool("quote_job", { ...job, date: "2026-11-11", urgency: "standard" }, ctx);
   assert.equal(result.urgency, "rush");

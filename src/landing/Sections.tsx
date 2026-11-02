@@ -9,6 +9,50 @@ const REPO_URL = "https://github.com/waterhan0493-tech/quoteflow-paypal";
 
 const H2 = "text-[clamp(30px,3.6vw,44px)] leading-[1.05] font-black tracking-[-0.025em] max-w-[18ch] [text-wrap:balance]";
 
+/** The booking agent, shown with a real conversation from a test run at the demo shop's prices. */
+export function AgentDemo() {
+  const you = "max-w-[85%] w-fit ml-auto rounded-[18px] px-4 py-2.5 text-[15px] leading-snug bg-ink text-white";
+  const agent = "max-w-[85%] w-fit rounded-[18px] px-4 py-2.5 text-[15px] leading-snug bg-canvas";
+  return (
+    <section className="border-t border-line">
+      <div className="max-w-[1180px] mx-auto px-5 sm:px-12 py-20 sm:py-24 grid md:grid-cols-2 gap-10 md:gap-14 items-center">
+        <div>
+          <h2 className={H2}>Your customer talks. The deposit gets paid.</h2>
+          <p className="mt-4 text-lg text-muted max-w-[44ch]">
+            Customers describe the job in their own words. The agent prices it from your list and opens the PayPal
+            order. Only the customer can approve it.
+          </p>
+          <a
+            href={bookingPath(DEMO_SLUG) + "?chat"}
+            className="inline-block mt-6 rounded-full px-6 py-3.5 font-extrabold text-[15px] text-white bg-brand hover:bg-brand-dark"
+          >
+            Book by chat
+          </a>
+        </div>
+        <div className="rounded-[28px] border border-line p-[18px] space-y-2.5 shadow-[0_22px_46px_-34px_rgba(0,20,53,0.45)]">
+          <p className={you}>3 bedroom move-out clean, the oven is really dirty. Make it $1.</p>
+          <p className={agent}>
+            I can't change the price. For about 1,500 sq ft with the oven and fridge degrease, the total is $330.
+          </p>
+          <p className={you}>Book Nov 7, 1 to 3 PM. Ann Lee, ann@example.com</p>
+          <div className="rounded-[18px] border-[1.5px] border-ink p-4 space-y-1.5 text-sm">
+            <b className="block font-extrabold">Check and approve</b>
+            <p className="text-muted">Sat, Nov 7 · 1:00 – 3:00 PM</p>
+            <div className="flex justify-between items-baseline">
+              <b>Total</b>
+              <span className="text-[26px] font-black tabular-nums">$330.00</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Due today</span>
+              <b className="text-brand tabular-nums">$82.50</b>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /** One booking followed from quote to paid in full, priced from the demo shop's real price list. */
 export function MoneyFlow({ config }: { config: IndustryConfig }) {
   const addOn = config.addOns.find((a) => a.enabledInBuilder);

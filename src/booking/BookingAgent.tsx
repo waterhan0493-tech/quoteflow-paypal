@@ -54,6 +54,7 @@ export function BookingAgent({ slug, config, onExit }: { slug: string; config: I
   const [draft, setDraft] = useState<AgentBooking | null>(null);
   const [booked, setBooked] = useState<QuoteRecord | null>(null);
   const end = useRef<HTMLDivElement>(null);
+  const summary = draft ?? quote;
 
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" });
@@ -88,7 +89,8 @@ export function BookingAgent({ slug, config, onExit }: { slug: string; config: I
 
   return (
     <div className="min-h-screen bg-white text-ink">
-      <div className="max-w-[560px] mx-auto px-5 pb-28">
+      <div className="max-w-[560px] lg:max-w-[1000px] mx-auto px-5 lg:px-8 pb-28 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-10 lg:items-start">
+        <div className="min-w-0">
         <header className="sticky top-0 z-10 bg-white py-3 flex items-center justify-between gap-3">
           <button
             type="button"
@@ -117,7 +119,11 @@ export function BookingAgent({ slug, config, onExit }: { slug: string; config: I
               Working on it…
             </p>
           )}
-          {quote && !draft && !booked && <QuoteCard quote={quote} />}
+          {quote && !draft && !booked && (
+            <div className="lg:hidden">
+              <QuoteCard quote={quote} />
+            </div>
+          )}
           {draft && !booked && <ApprovalCard slug={slug} draft={draft} onBooked={setBooked} />}
           {booked && (
             <div className="rounded-[18px] border border-line p-5 space-y-2" role="status">
@@ -143,11 +149,24 @@ export function BookingAgent({ slug, config, onExit }: { slug: string; config: I
           )}
           <div ref={end} className="scroll-mb-28" />
         </div>
+        </div>
+
+        <aside className="hidden lg:block sticky top-6 mt-4 rounded-[20px] border border-line bg-white p-5 space-y-3 shadow-[0_22px_46px_-34px_rgba(0,20,53,0.45)]">
+          <h2 className="text-[15px] font-extrabold">Your booking</h2>
+          {summary ? (
+            <>
+              {summary.date && <p className="text-sm font-semibold">{longDate(summary.date)}{draft ? " · " + draft.arrivalWindow : ""}</p>}
+              <Amounts quote={summary} />
+            </>
+          ) : (
+            <p className="text-sm text-muted">Your price appears here as soon as the assistant has it.</p>
+          )}
+        </aside>
       </div>
 
       {!booked && (
         <form onSubmit={send} className="fixed bottom-0 inset-x-0 bg-white border-t border-line">
-          <div className="max-w-[560px] mx-auto px-5 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] flex gap-2">
+          <div className="max-w-[560px] lg:max-w-[1000px] mx-auto px-5 lg:pl-8 lg:pr-[412px] pt-3 pb-[max(16px,env(safe-area-inset-bottom))] flex gap-2">
             <label htmlFor="qf-chat" className="sr-only">
               Message
             </label>

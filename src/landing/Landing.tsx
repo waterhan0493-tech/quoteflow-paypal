@@ -5,7 +5,7 @@ import { INITIAL_PRESETS } from "@/data/industries";
 import { DEMO_SLUG, bookingPath, loadBusinessConfig } from "@/lib/business";
 import { formatMoney, priceQuote } from "@/lib/pricing";
 import { DEPOSIT_RATE, depositFor } from "@/lib/deposit";
-import { MoneyFlow, ServerChecks } from "./Sections";
+import { AgentDemo, MoneyFlow, ServerChecks } from "./Sections";
 
 const FACTS = [
   "An AI agent quotes and books by chat.",
@@ -133,6 +133,7 @@ export function Landing() {
         </div>
       </main>
 
+      <AgentDemo />
       <MoneyFlow config={config} />
       <ServerChecks />
 
