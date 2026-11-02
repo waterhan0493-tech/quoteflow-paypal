@@ -23,7 +23,7 @@ test("a job can be priced before a date is chosen", async () => {
 });
 
 test("the weekday comes from the server", async () => {
-  const { result } = await runTool("quote_job", { ...job, date: "2026-11-07" }, ctx);
+  const { result } = await runTool("quote_job", { ...job, date: "2026-11-14" }, ctx);
   assert.equal(result.weekday, "Saturday");
 });
 
