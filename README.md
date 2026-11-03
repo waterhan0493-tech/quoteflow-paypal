@@ -110,7 +110,7 @@ Pages: `/` overview, `/b/sparkle-co` customer booking page, `/dashboard` owner d
 
 ## Testing with the PayPal sandbox
 
-Sandbox payments use test money. You need a PayPal sandbox **Personal** account to pay.
+Sandbox payments use test money. You need a PayPal sandbox **Personal** account to pay. The demo dashboard is shared, so use a fake name and email address.
 
 **Sandbox buyer account** (test money only):
 
