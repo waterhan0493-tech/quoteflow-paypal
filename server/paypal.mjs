@@ -70,6 +70,7 @@ export function createOrder({ amount, description, customId, referenceId, brandN
             brand_name: brandName.slice(0, 127),
             shipping_preference: "NO_SHIPPING", // a service visit, nothing ships
             user_action: "PAY_NOW",
+            locale: "en-US", // the SDK locale only covers the buttons, not the approval window
           },
         },
       },
