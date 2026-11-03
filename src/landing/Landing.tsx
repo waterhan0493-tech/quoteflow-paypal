@@ -140,7 +140,9 @@ export function Landing() {
       <footer>
         <div className="max-w-[1180px] mx-auto px-5 sm:px-12 py-6 text-[13px] text-muted flex flex-wrap gap-x-6 gap-y-1">
           <span>Built for the PayPal AI Hackathon 2026</span>
-          <span>Open source under the MIT license</span>
+          <a href="https://github.com/waterhan0493-tech/quoteflow-paypal" target="_blank" rel="noreferrer" className="hover:underline">
+            Open source under the MIT license
+          </a>
         </div>
       </footer>
     </div>

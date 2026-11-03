@@ -9,8 +9,17 @@ const REPO_URL = "https://github.com/waterhan0493-tech/quoteflow-paypal";
 
 const H2 = "text-[clamp(30px,3.6vw,44px)] leading-[1.05] font-black tracking-[-0.025em] max-w-[18ch] [text-wrap:balance]";
 
-/** The booking agent, shown with a real conversation from a test run at the demo shop's prices. */
+/** A Saturday at least 2 days away: tomorrow would add the rush fee, and the shown total excludes it. */
+function nextSaturday(from = new Date()) {
+  const days = (6 - from.getDay() + 7) % 7;
+  const date = new Date(from);
+  date.setDate(from.getDate() + (days < 2 ? days + 7 : days));
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+/** The booking agent, shown with a real conversation from a test run; the date moves so it never looks past. */
 export function AgentDemo() {
+  const date = nextSaturday();
   const you = "max-w-[85%] w-fit ml-auto rounded-[18px] px-4 py-2.5 text-[15px] leading-snug bg-ink text-white";
   const agent = "max-w-[85%] w-fit rounded-[18px] px-4 py-2.5 text-[15px] leading-snug bg-canvas";
   return (
@@ -34,10 +43,10 @@ export function AgentDemo() {
           <p className={agent}>
             I can't change the price. For about 1,500 sq ft with the oven and fridge degrease, the total is $330.
           </p>
-          <p className={you}>Book Nov 7, 1 to 3 PM. Ann Lee, ann@example.com</p>
+          <p className={you}>Book {date}, 1 to 3 PM. Ann Lee, ann@example.com</p>
           <div className="rounded-[18px] border-[1.5px] border-ink p-4 space-y-1.5 text-sm">
             <b className="block font-extrabold">Check and approve</b>
-            <p className="text-muted">Sat, Nov 7 · 1:00 – 3:00 PM</p>
+            <p className="text-muted">Sat, {date} · 1:00 – 3:00 PM</p>
             <div className="flex justify-between items-baseline">
               <b>Total</b>
               <span className="text-[26px] font-black tabular-nums">$330.00</span>
