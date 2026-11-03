@@ -104,9 +104,14 @@ export function Dashboard() {
             },
             (err: Error) => {
               if (!alive) return;
-              // The server rejected a saved session (a demo password reset ends them): clear it to show sign-in.
-              if (err instanceof ApiError && err.status === 401) void signOut();
-              else setGate({ kind: "error", message: err.message });
+              if (err instanceof ApiError && err.status === 401) {
+                // The server rejected a saved session. Show sign-in now: clearing it can fail for a dead session.
+                currentUser = null;
+                setGate({ kind: "signed-out", demo: cfg.demo });
+                void signOut();
+              } else {
+                setGate({ kind: "error", message: err.message });
+              }
             }
           );
         }, 0);
