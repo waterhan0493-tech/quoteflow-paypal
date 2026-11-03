@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { CreateBusiness, SignIn } from "@/dashboard/SignIn";
+import { ApiError } from "@/lib/api";
 import { accessToken, getMe, onSessionChange, signOut } from "@/lib/auth";
 import { publicConfig, usePublicConfig } from "@/lib/config";
 import { INITIAL_PRESETS, type IndustryConfig, type PresetId } from "@/data/industries";
@@ -101,7 +102,12 @@ export function Dashboard() {
                   : { kind: "no-business", demo: me.demo }
               );
             },
-            (err: Error) => alive && setGate({ kind: "error", message: err.message })
+            (err: Error) => {
+              if (!alive) return;
+              // The server rejected a saved session (a demo password reset ends them): clear it to show sign-in.
+              if (err instanceof ApiError && err.status === 401) void signOut();
+              else setGate({ kind: "error", message: err.message });
+            }
           );
         }, 0);
       });
