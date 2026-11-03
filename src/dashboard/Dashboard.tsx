@@ -473,7 +473,7 @@ function BookingActions({
       {confirming ? (
         <div className="space-y-1.5">
           <p className="text-xs font-bold">Refund {formatMoney(booking.deposit.amount)} and cancel?</p>
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             <button
               type="button"
               disabled={busy}
@@ -506,7 +506,7 @@ function BookingActions({
               Request balance
             </button>
           ) : (
-            <div className="flex gap-1.5">
+            <div className="flex flex-wrap gap-1.5">
               <button type="button" onClick={copy} className={smallButton + " bg-ink text-white hover:bg-[#0A2A5C]"}>
                 {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 {copied ? "Copied" : "Copy pay link"}
