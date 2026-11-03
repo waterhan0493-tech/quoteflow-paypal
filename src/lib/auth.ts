@@ -81,7 +81,8 @@ export async function signInDemo(): Promise<void> {
 
 export async function signOut(): Promise<void> {
   const sb = await authClient();
-  await sb?.auth.signOut();
+  // Local: works with a rejected session, and leaves other people on the shared demo account signed in.
+  await sb?.auth.signOut({ scope: "local" });
 }
 
 export async function getMe(token?: string): Promise<Me> {
